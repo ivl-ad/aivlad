@@ -53,25 +53,31 @@
     html,body{ height:100%; }
 
     body{
-      margin:0;
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
-      background:#0b0b0f;
-      color:#f6f7ff;
-      -webkit-tap-highlight-color: transparent;
-      touch-action: manipulation;
+  margin:0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+  background:#0b0b0f;
+  color:#f6f7ff;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 
-      /* Prevent scrolling bounce; we manage our own viewport */
-      overflow:hidden;
-      overscroll-behavior: none;
-    }
+  /* Allow scrolling so the browser toolbar can collapse */
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+
+  overscroll-behavior-y: none; /* optional */
+}
+
 
     /* Fill the screen even when browser UI expands/collapses */
     .viewport{
-      height: var(--vvh);
-      width: 100%;
-      display:flex;
-      flex-direction:column;
-    }
+  min-height: var(--vvh); /* was height */
+  height: auto;           /* allow content to extend */
+  width: 100%;
+  display:flex;
+  flex-direction:column;
+}
+
 
     /* mobile-only guard */
     .desktop-guard{ display:none; padding:24px; text-align:center; color:#c7c9d6; }
@@ -352,6 +358,11 @@
                   0 0 0 2px rgba(255,255,255,.35);
       filter: brightness(1.02);
     }
+	
+	.scroll-spacer{
+  height: 140px; /* creates enough scroll to trigger toolbar collapse */
+}
+
 
     @media (prefers-reduced-motion: reduce){
       .kb-overlay.show .keyboard,
@@ -474,6 +485,7 @@
       </div>
     </div>
   </div>
+<div class="scroll-spacer" aria-hidden="true"></div>
 
   <script>
     (() => {
