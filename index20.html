@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Custom iOS-like Keyboard (Mobile Only)</title>
+  <style>
+    :root{
+      --bg:#0b0b0f;
+      --panel:#14141b;
+      --panel2:#1b1b24;
+      --text:#f4f6ff;
+      --muted:#a8adc7;
+      --key:#2a2a36;
+      --key2:#343446;
+      --keyText:#f6f7ff;
+      --keyTextMuted:#c8cbe0;
+      --radius:14px;
+      --shadow: 0 6px 18px rgba(0,0,0,.35);
+      --gap:8px;
+      --keyH:44px;
+      --keyR:10px;
+      --safeBottom: env(safe-area-inset-bottom, 0px);
+      --safeTop: env(safe-area-inset-top, 0px);
+    }
+
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      background: radial-gradient(1200px 700px at 50% -200px, #2a2a3d 0%, var(--bg) 55%);
+      color:var(--text);
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+
+    /* "Mobile only" guard */
+    .desktop-guard{
+      display:none;
+      padding:24px;
+      color:var(--muted);
+      text-align:center;
+    }
+    @media (min-width: 768px){
+      .app{ display:none !important; }
+      .desktop-guard{ display:block; }
+    }
+
+    .app{
+      min-height:100%;
+      display:flex;
+      flex-direction:column;
+      padding: calc(16px + var(--safeTop)) 16px calc(12px + var(--safeBottom));
+      gap:14px;
+      max-width: 560px;
+      margin: 0 auto;
+    }
+
+    .title{
+      display:flex;
+      align-items:flex-end;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .title h1{
+      margin:0;
+      font-size:16px;
+      font-weight:650;
+      letter-spacing:.2px;
+    }
+    .title .hint{
+      font-size:12px;
+      color:var(--muted);
+      text-align:right;
+      line-height:1.2;
+    }
+
+    .card{
+      background: linear-gradient(180deg, var(--panel) 0%, var(--panel2) 100%);
+      border: 1px solid rgba(255,255,255,.07);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 12px;
+    }
+
+    .fake-input{
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+    .label{
+      font-size:12px;
+      color:var(--muted);
+    }
+
+    .display{
+      position:relative;
+      min-height: 44px;
+      padding: 12px 12px;
+      border-radius: 12px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.10);
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+    .display[role="textbox"]{ outline:none; }
+    .caret{
+      width:2px;
+      height:18px;
+      background: rgba(255,255,255,.85);
+      border-radius:2px;
+      animation: blink 1.1s step-end infinite;
+      flex:0 0 auto;
+    }
+    @keyframes blink { 50% { opacity:0; } }
+
+    .text{
+      font-size:16px;
+      line-height:1.2;
+      white-space:pre-wrap;
+      word-break:break-word;
+      flex:1 1 auto;
+      color:var(--text);
+    }
+    .placeholder{
+      color: rgba(244,246,255,.45);
+    }
+
+    .output{
+      margin-top: 10px;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+    .output .display{
+      background: rgba(20, 198, 120, .10);
+      border-color: rgba(20, 198, 120, .22);
+    }
+
+    /* Keyboard */
+    .keyboard{
+      background: linear-gradient(180deg, rgba(255,255,255,.06) 0%, rgba(255,255,255,.03) 100%);
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 18px;
+      padding: 10px;
+      box-shadow: var(--shadow);
+      user-select:none;
+      -webkit-user-select:none;
+    }
+    .row{
+      display:flex;
+      gap: var(--gap);
+      margin: 0 0 var(--gap);
+      align-items:stretch;
+    }
+    .row:last-child{ margin-bottom:0; }
+
+    .spacer{ flex:1 1 auto; }
+
+    .key{
+      height: var(--keyH);
+      border-radius: var(--keyR);
+      background: linear-gradient(180deg, var(--key2) 0%, var(--key) 100%);
+      border: 1px solid rgba(255,255,255,.08);
+      color: var(--keyText);
+      font-size: 16px;
+      font-weight: 600;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      flex: 1 1 0;
+      padding: 0 8px;
+      box-shadow: 0 1px 0 rgba(255,255,255,.08) inset;
+    }
+    .key:active{
+      transform: translateY(1px);
+      filter: brightness(1.08);
+    }
+    .key.wide{ flex: 1.35 1 0; font-size:14px; }
+    .key.wider{ flex: 2.2 1 0; }
+    .key.space{ flex: 4.6 1 0; }
+    .key.go{
+      flex: 1.8 1 0;
+      background: linear-gradient(180deg, rgba(72,132,255,.95) 0%, rgba(51,104,255,.92) 100%);
+      border-color: rgba(255,255,255,.16);
+      font-weight: 750;
+    }
+    .key.secondary{
+      background: linear-gradient(180deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,.06) 100%);
+      color: var(--keyTextMuted);
+      font-weight: 650;
+      font-size: 13px;
+    }
+    .key.disabled{
+      opacity:.45;
+      filter:saturate(.4);
+    }
+    .key.disabled:active{
+      transform:none;
+      filter:saturate(.4);
+    }
+    .key.shift.on{
+      outline: 2px solid rgba(255,255,255,.22);
+      background: linear-gradient(180deg, rgba(255,255,255,.16) 0%, rgba(255,255,255,.08) 100%);
+    }
+
+    /* iOS-like stagger */
+    .row.stagger-2{ padding: 0 14px; }
+    .row.stagger-3{ padding: 0 6px; }
+    .key.icon{ font-size: 18px; }
+
+    /* Small helper footer */
+    .note{
+      font-size:12px;
+      color: var(--muted);
+      line-height:1.3;
+      margin-top: 2px;
+    }
+  </style>
+</head>
+<body>
+  <div class="desktop-guard">
+    <h2 style="margin:0 0 8px; font-size:18px; color:#fff;">Mobile only</h2>
+    <p style="margin:0;">Open this page on a phone-sized viewport to use the custom keyboard.</p>
+  </div>
+
+  <main class="app">
+    <div class="title">
+      <h1>Custom iOS-like Keyboard (No Native Keyboard)</h1>
+      <div class="hint">Tap keys below<br/>Press <b>Go</b> to copy to output</div>
+    </div>
+
+    <section class="card fake-input">
+      <div class="label">Simulated input</div>
+      <div id="inputDisplay" class="display" role="textbox" aria-label="Simulated input (no native keyboard)" tabindex="0">
+        <div id="inputText" class="text placeholder">Type here…</div>
+        <div class="caret" aria-hidden="true"></div>
+      </div>
+
+      <div class="output">
+        <div class="label">Output after Go</div>
+        <div id="outputDisplay" class="display" role="status" aria-live="polite">
+          <div id="outputText" class="text placeholder">Nothing yet.</div>
+        </div>
+      </div>
+
+      <div class="note">This uses a non-editable display so the native keyboard won’t open.</div>
+    </section>
+
+    <section class="keyboard" id="kb" aria-label="Custom keyboard">
+      <!-- Row 1: Q to P -->
+      <div class="row" data-row="1">
+        <button class="key" data-k="q" type="button">q</button>
+        <button class="key" data-k="w" type="button">w</button>
+        <button class="key" data-k="e" type="button">e</button>
+        <button class="key" data-k="r" type="button">r</button>
+        <button class="key" data-k="t" type="button">t</button>
+        <button class="key" data-k="y" type="button">y</button>
+        <button class="key" data-k="u" type="button">u</button>
+        <button class="key" data-k="i" type="button">i</button>
+        <button class="key" data-k="o" type="button">o</button>
+        <button class="key" data-k="p" type="button">p</button>
+      </div>
+
+      <!-- Row 2: A to L with left/right space -->
+      <div class="row stagger-2" data-row="2">
+        <button class="key" data-k="a" type="button">a</button>
+        <button class="key" data-k="s" type="button">s</button>
+        <button class="key" data-k="d" type="button">d</button>
+        <button class="key" data-k="f" type="button">f</button>
+        <button class="key" data-k="g" type="button">g</button>
+        <button class="key" data-k="h" type="button">h</button>
+        <button class="key" data-k="j" type="button">j</button>
+        <button class="key" data-k="k" type="button">k</button>
+        <button class="key" data-k="l" type="button">l</button>
+      </div>
+
+      <!-- Row 3: Shift, Z to M, Backspace -->
+      <div class="row stagger-3" data-row="3">
+        <button id="shiftKey" class="key wide secondary shift" data-action="shift" type="button" aria-pressed="false">⇧</button>
+
+        <button class="key" data-k="z" type="button">z</button>
+        <button class="key" data-k="x" type="button">x</button>
+        <button class="key" data-k="c" type="button">c</button>
+        <button class="key" data-k="v" type="button">v</button>
+        <button class="key" data-k="b" type="button">b</button>
+        <button class="key" data-k="n" type="button">n</button>
+        <button class="key" data-k="m" type="button">m</button>
+
+        <button class="key wide secondary icon" data-action="backspace" type="button" aria-label="Backspace">⌫</button>
+      </div>
+
+      <!-- Row 4: number row (disabled), emojis (disabled), space, period, go -->
+      <div class="row" data-row="4">
+        <button class="key wide secondary disabled" data-action="numbers" type="button" aria-disabled="true">123</button>
+        <button class="key wide secondary disabled" data-action="emoji" type="button" aria-disabled="true">😊</button>
+
+        <button class="key space" data-action="space" type="button">space</button>
+
+        <button class="key wider" data-k="." type="button">.</button>
+        <button class="key go" data-action="go" type="button">Go</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      const inputDisplay = document.getElementById('inputDisplay');
+      const inputTextEl = document.getElementById('inputText');
+      const outputTextEl = document.getElementById('outputText');
+      const kb = document.getElementById('kb');
+      const shiftKey = document.getElementById('shiftKey');
+
+      let value = '';
+      let shift = false;
+
+      const render = () => {
+        if (value.length) {
+          inputTextEl.textContent = value;
+          inputTextEl.classList.remove('placeholder');
+        } else {
+          inputTextEl.textContent = 'Type here…';
+          inputTextEl.classList.add('placeholder');
+        }
+
+        // Reflect shift visual state + aria
+        shiftKey.classList.toggle('on', shift);
+        shiftKey.setAttribute('aria-pressed', String(shift));
+      };
+
+      const pushChar = (ch) => {
+        if (!ch) return;
+        value += ch;
+        // iOS-like single-use shift (not caps lock)
+        if (shift && /[A-Za-z]/.test(ch)) shift = false;
+        render();
+      };
+
+      const backspace = () => {
+        if (!value) return;
+        value = value.slice(0, -1);
+        render();
+      };
+
+      const go = () => {
+        if (value.length) {
+          outputTextEl.textContent = value;
+          outputTextEl.classList.remove('placeholder');
+        } else {
+          outputTextEl.textContent = 'Nothing yet.';
+          outputTextEl.classList.add('placeholder');
+        }
+      };
+
+      // Prevent any accidental focus behavior that might summon keyboards in some webviews
+      inputDisplay.addEventListener('focus', (e) => e.target.blur());
+      inputDisplay.addEventListener('pointerdown', (e) => {
+        // Keep taps from selecting text / focusing anything
+        e.preventDefault();
+      });
+
+      // Event delegation for efficiency
+      kb.addEventListener('click', (e) => {
+        const btn = e.target.closest('button');
+        if (!btn || btn.classList.contains('disabled')) return;
+
+        const action = btn.dataset.action;
+        const k = btn.dataset.k;
+
+        if (action) {
+          switch (action) {
+            case 'shift':
+              shift = !shift;
+              render();
+              return;
+            case 'backspace':
+              backspace();
+              return;
+            case 'space':
+              pushChar(' ');
+              return;
+            case 'go':
+              go();
+              return;
+            // disabled placeholders (safety)
+            case 'numbers':
+            case 'emoji':
+              return;
+          }
+        }
+
+        if (k) {
+          const ch = (shift && /^[a-z]$/.test(k)) ? k.toUpperCase() : k;
+          pushChar(ch);
+        }
+      }, { passive: true });
+
+      // Optional: allow hardware keyboard typing without focusing an input (desktop testing)
+      // Keep minimal + safe; only active when the viewport is mobile-ish (still won't open native keyboard).
+      window.addEventListener('keydown', (e) => {
+        // Ignore modified shortcuts
+        if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+        if (e.key === 'Backspace') { e.preventDefault(); backspace(); return; }
+        if (e.key === 'Enter') { e.preventDefault(); go(); return; }
+        if (e.key === 'Shift') { shift = true; render(); return; }
+        if (e.key.length === 1) {
+          const ch = shift ? e.key.toUpperCase() : e.key;
+          // allow letters, space, period
+          if (/^[a-zA-Z .]$/.test(ch)) {
+            e.preventDefault();
+            pushChar(ch);
+          }
+        }
+      }, { passive: false });
+
+      render();
+    })();
+  </script>
+</body>
+</html>
