@@ -1315,7 +1315,7 @@ savedPos = {
     if (!question) return;
 
     const qm = question.endsWith("?") ? "" : "?";
-    const answerCore = ans.slice(0, ansCut ?? ans.length);
+    const answerCore = ans.slice(1, ansCut ?? ans.length);
     out.textContent = `You're asking AI Vlad ${question}${qm} It is... ${answerCore}`;
   }
 
