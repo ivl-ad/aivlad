@@ -489,11 +489,14 @@
 
   <script>
     (() => {
-	window.addEventListener('load', function() {
-  setTimeout(function() {
-    window.scrollTo(0, 20);
-  }, 0);
+	
+	
+	window.addEventListener('load', () => {
+  const nudge = () => window.scrollTo(0, 140);
+  setTimeout(nudge, 50);
+  setTimeout(nudge, 250);
 });
+
       const overlay = document.getElementById('overlay');
       const inputDisplay = document.getElementById('inputDisplay');
       const inputTextEl = document.getElementById('inputText');
