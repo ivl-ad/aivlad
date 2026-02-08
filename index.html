@@ -702,10 +702,13 @@
     bg.appendChild(defs);
 
     const vp = { x: w * 0.50, y: h * 0.28 };
-    const floorY = h * 0.56;
+const floorY = h * 0.56;
 
-    hero.style.left = `${vp.x}px`;
-    hero.style.top  = `${vp.y}px`;
+const isMobile = window.matchMedia("(max-width: 760px), (pointer: coarse)").matches;
+
+hero.style.left = `${vp.x}px`;
+hero.style.top  = `${vp.y - (isMobile ? 30 : 0)}px`;
+
 
     const rayCount = Math.max(26, Math.floor(w / 48));
     const bottomMargin = 20;
