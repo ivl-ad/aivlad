@@ -1,0 +1,679 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+
+  <!-- Make it behave nicely on mobile -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="format-detection" content="telephone=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Keyboard Demo" />
+  <meta name="theme-color" content="#0b0b0f" />
+
+  <!-- PWA -->
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <!-- Provide real icon files at these paths -->
+  <link rel="apple-touch-icon" href="./icons/icon-180.png" />
+
+  <title>Custom Keyboard Overlay</title>
+
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+
+  <style>
+    :root{
+      /* iOS-ish palette (approx) */
+      --ios-bg: #d1d4da;       /* keyboard well */
+      --ios-key: #ffffff;      /* key */
+      --ios-func: #b9bdc6;     /* shift/delete/123 */
+      --ios-keytext: #111114;
+      --ios-functext: #111114;
+      --ios-border: rgba(0,0,0,.12);
+
+      --safeBottom: env(safe-area-inset-bottom, 0px);
+      --safeTop: env(safe-area-inset-top, 0px);
+
+      /* Base sizing */
+      --kbW: 320px;
+      --kbH: 320px;
+      --keyH: 48px;
+      --keyR: 6px;
+
+      --gap: 7.5px;
+      --padTop: 10px;
+      --padBottom: 8px;
+
+      --row2Inset: 11.3px;
+
+      /* JS will set this to the true visual viewport height */
+      --vvh: 100vh;
+    }
+
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      background:#0b0b0f;
+      color:#f6f7ff;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+
+      /* Prevent scrolling bounce; we manage our own viewport */
+      overflow:hidden;
+      overscroll-behavior: none;
+    }
+
+    /* Fill the screen even when browser UI expands/collapses */
+    .viewport{
+      height: var(--vvh);
+      width: 100%;
+      display:flex;
+      flex-direction:column;
+    }
+
+    /* mobile-only guard */
+    .desktop-guard{ display:none; padding:24px; text-align:center; color:#c7c9d6; }
+    @media (min-width: 768px){
+      .app{ display:none !important; }
+      .desktop-guard{ display:block; }
+    }
+
+    .app{
+      position:relative;
+      flex: 1 1 auto;
+      padding: calc(14px + var(--safeTop)) 16px 16px;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      max-width:560px;
+      margin:0 auto;
+    }
+
+    .card{
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: 14px;
+      padding: 12px;
+    }
+
+    .label{ font-size:12px; color: rgba(246,247,255,.7); margin-bottom:8px; }
+
+    /* simulated input */
+    .display{
+      position:relative;
+      min-height: 46px;
+      padding: 12px 12px;
+      border-radius: 12px;
+      background: rgba(255,255,255,.07);
+      border: 1px solid rgba(255,255,255,.12);
+      display:flex;
+      align-items:center;
+      gap:10px;
+      user-select:none;
+      -webkit-user-select:none;
+    }
+    .display:active{ filter: brightness(1.05); }
+
+    /* caret on LEFT side (before text) */
+    .caret{
+      width:2px;
+      height:18px;
+      background: rgba(255,255,255,.92);
+      border-radius:2px;
+      flex:0 0 auto;
+      animation: blink 1.05s step-end infinite;
+    }
+    @keyframes blink { 50% { opacity:0; } }
+
+    .text{
+      font-size:16px;
+      line-height:1.2;
+      white-space:pre-wrap;
+      word-break:break-word;
+      flex:1 1 auto;
+      color:#f6f7ff;
+    }
+    .placeholder{ color: rgba(246,247,255,.45); }
+
+    .note{ font-size:12px; color: rgba(246,247,255,.65); line-height:1.3; margin-top:8px; }
+
+    /* output */
+    .output .display{
+      background: rgba(20, 198, 120, .10);
+      border-color: rgba(20, 198, 120, .22);
+    }
+
+    /* small top bar (for “Enter Fullscreen” + iOS A2HS hint) */
+    .topbar{
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      padding: calc(10px + var(--safeTop)) 16px 10px;
+      background: linear-gradient(to bottom, rgba(11,11,15,.92), rgba(11,11,15,.55), rgba(11,11,15,0));
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+    .topbar-inner{
+      max-width:560px;
+      margin:0 auto;
+      display:flex;
+      gap:10px;
+      align-items:center;
+      justify-content:space-between;
+    }
+    .pill{
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.07);
+      color:#f6f7ff;
+      border-radius:999px;
+      padding: 8px 12px;
+      font-size:12px;
+      line-height:1;
+      display:inline-flex;
+      gap:8px;
+      align-items:center;
+      user-select:none;
+    }
+    .pill button{
+      all: unset;
+      cursor: pointer;
+      font-weight: 650;
+    }
+    .hint{
+      font-size:12px;
+      color: rgba(246,247,255,.75);
+      line-height:1.2;
+    }
+    .hint b{ color:#fff; }
+
+    /* overlay keyboard */
+    .kb-overlay{
+      position:fixed;
+      inset:0;
+      height: var(--vvh);
+      background: rgba(0,0,0,.0);
+      pointer-events:none;
+      z-index:999;
+    }
+
+    .kb-overlay.show{
+      pointer-events:auto;
+      background: rgba(0,0,0,.10);
+      transition: background 180ms ease;
+    }
+
+    .keyboard{
+      position:absolute;
+      left:50%;
+      width: min(var(--kbW), 100vw);
+      transform: translate(-50%, 100%);
+
+      /* Anchor above safe area */
+      bottom: var(--safeBottom);
+
+      background: var(--ios-bg);
+      border-top: 1px solid rgba(0,0,0,.12);
+      box-shadow: 0 -10px 30px rgba(0,0,0,.25);
+      border-top-left-radius: 10px;
+      border-top-right-radius: 10px;
+      overflow:hidden;
+
+      height: var(--kbH);
+      max-height: calc(var(--vvh) - 16px - var(--safeTop) - var(--safeBottom));
+
+      padding: var(--padTop) var(--gap) var(--padBottom);
+      display:flex;
+      flex-direction:column;
+      gap: var(--gap);
+      will-change: transform;
+    }
+
+    .kb-overlay.show .keyboard{
+      transform: translate(-50%, 0);
+      transition: transform 260ms cubic-bezier(.2,.85,.25,1);
+    }
+    .kb-overlay.hiding .keyboard{
+      transform: translate(-50%, 100%);
+      transition: transform 220ms cubic-bezier(.4,0,.6,1);
+    }
+
+    .row{
+      display:flex;
+      gap: var(--gap);
+      align-items:stretch;
+    }
+    .row.row2{ padding: 0 calc(var(--row2Inset) - var(--gap)); }
+    .row.row3{ padding: 0 0; }
+
+    /* row 5: two circular buttons pinned left/right */
+    .row.row5{
+      justify-content: space-between;
+      align-items: center;
+      gap: 0;
+    }
+
+    .key.extra{
+      flex: 0 0 auto;
+      width: 52px;
+      height: 52px;
+      padding: 0;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .material-symbols-outlined{
+      font-variation-settings: 'FILL' 0, 'wght' 500, 'GRAD' 0, 'opsz' 24;
+      font-size: 22px;
+      line-height: 1;
+      display: inline-block;
+    }
+
+    .key{
+      height: var(--keyH);
+      border-radius: var(--keyR);
+      border: 1px solid var(--ios-border);
+      box-shadow: 0 1px 0 rgba(0,0,0,.14), 0 1px 0 rgba(255,255,255,.55) inset;
+      background: var(--ios-key);
+      color: var(--ios-keytext);
+      font-size: 17px;
+      font-weight: 600;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      flex: 1 1 0;
+      padding: 0 6px;
+      user-select:none;
+      -webkit-user-select:none;
+      touch-action: manipulation;
+    }
+    .key:active{
+      transform: translateY(1px);
+      filter: brightness(.96);
+    }
+
+    .key.func{
+      background: var(--ios-func);
+      color: var(--ios-functext);
+      font-weight: 650;
+      font-size: 14px;
+    }
+
+    .key.go{
+      background: #ffffff;
+      font-weight: 750;
+    }
+
+    .key.space{
+      flex: 4.6 1 0;
+      font-weight: 550;
+      font-size: 15px;
+    }
+
+    .key.shift, .key.del, .key.num{
+      flex: 1.35 1 0;
+    }
+
+    .key.period{ flex: 1.1 1 0; }
+
+    .key.disabled{
+      opacity:.55;
+    }
+    .key.disabled:active{
+      transform:none;
+      filter:none;
+    }
+
+    .grabber{
+      width: 44px;
+      height: 5px;
+      border-radius: 999px;
+      background: rgba(0,0,0,.20);
+      margin: 2px auto 4px;
+      flex: 0 0 auto;
+    }
+
+    .key.func svg{
+      width: 18px;
+      height: 18px;
+      display:block;
+      color: var(--ios-functext);
+    }
+    .key.shift svg path{
+      fill: currentColor;
+    }
+
+    .key.shift.is-on{
+      box-shadow: 0 1px 0 rgba(0,0,0,.14),
+                  0 1px 0 rgba(255,255,255,.55) inset,
+                  0 0 0 2px rgba(255,255,255,.35);
+      filter: brightness(1.02);
+    }
+
+    @media (prefers-reduced-motion: reduce){
+      .kb-overlay.show .keyboard,
+      .kb-overlay.hiding .keyboard{ transition:none !important; }
+      .caret{ animation:none; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="viewport">
+    <!-- “Fullscreen” controls / hints -->
+    <div class="topbar">
+      <div class="topbar-inner">
+        <div class="pill" id="fsPill" style="display:none;">
+          <span>Fullscreen</span>
+          <button id="fsBtn" type="button">Enter</button>
+        </div>
+
+        <div class="hint" id="iosHint" style="display:none;">
+          On iPhone/iPad: use <b>Share → Add to Home Screen</b> for true fullscreen.
+        </div>
+      </div>
+    </div>
+
+    <div class="desktop-guard">
+      <h2 style="margin:0 0 8px; font-size:18px; color:#fff;">Mobile only</h2>
+      <p style="margin:0;">Open this page on a phone-sized viewport.</p>
+    </div>
+
+    <main class="app">
+      <section class="card">
+        <div class="label">Simulated input (tap to open keyboard)</div>
+        <div id="inputDisplay" class="display" role="button" aria-label="Simulated input">
+          <div class="caret" aria-hidden="true"></div>
+          <div id="inputText" class="text placeholder">Tap to type…</div>
+        </div>
+        <div class="note">Native keyboard is prevented by not using a real &lt;input&gt;.</div>
+      </section>
+
+      <section class="card output">
+        <div class="label">Output after Go</div>
+        <div class="display" role="status" aria-live="polite">
+          <div id="outputText" class="text placeholder">Nothing yet.</div>
+        </div>
+        <div class="note">Tap outside the keyboard to dismiss it.</div>
+      </section>
+    </main>
+
+    <!-- overlay keyboard -->
+    <div id="overlay" class="kb-overlay" aria-hidden="true">
+      <div class="keyboard" role="application" aria-label="Custom keyboard">
+        <div class="grabber" aria-hidden="true"></div>
+
+        <div class="row row1">
+          <button class="key" data-k="q" type="button">Q</button>
+          <button class="key" data-k="w" type="button">W</button>
+          <button class="key" data-k="e" type="button">E</button>
+          <button class="key" data-k="r" type="button">R</button>
+          <button class="key" data-k="t" type="button">T</button>
+          <button class="key" data-k="y" type="button">Y</button>
+          <button class="key" data-k="u" type="button">U</button>
+          <button class="key" data-k="i" type="button">I</button>
+          <button class="key" data-k="o" type="button">O</button>
+          <button class="key" data-k="p" type="button">P</button>
+        </div>
+
+        <div class="row row2">
+          <button class="key" data-k="a" type="button">A</button>
+          <button class="key" data-k="s" type="button">S</button>
+          <button class="key" data-k="d" type="button">D</button>
+          <button class="key" data-k="f" type="button">F</button>
+          <button class="key" data-k="g" type="button">G</button>
+          <button class="key" data-k="h" type="button">H</button>
+          <button class="key" data-k="j" type="button">J</button>
+          <button class="key" data-k="k" type="button">K</button>
+          <button class="key" data-k="l" type="button">L</button>
+        </div>
+
+        <div class="row row3">
+          <button id="shiftKey" class="key func shift" data-action="shift" type="button" aria-pressed="false" aria-label="Shift">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M12 3l7 7h-4v7H9v-7H5l7-7z"></path>
+            </svg>
+          </button>
+
+          <button class="key" data-k="z" type="button">Z</button>
+          <button class="key" data-k="x" type="button">X</button>
+          <button class="key" data-k="c" type="button">C</button>
+          <button class="key" data-k="v" type="button">V</button>
+          <button class="key" data-k="b" type="button">B</button>
+          <button class="key" data-k="n" type="button">N</button>
+          <button class="key" data-k="m" type="button">M</button>
+
+          <button class="key func del" data-action="backspace" type="button" aria-label="Delete">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M21 7v10a2 2 0 0 1-2 2H9a2 2 0 0 1-1.4-.6L3 13l4.6-5.4A2 2 0 0 1 9 7h10a2 2 0 0 1 2 0z"></path>
+              <path d="M11 10l7 7M18 10l-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+            </svg>
+          </button>
+        </div>
+
+        <div class="row row4">
+          <button class="key func num disabled" data-action="numbers" type="button" aria-disabled="true">123</button>
+          <button class="key func emoji disabled" data-action="emoji" type="button" aria-disabled="true">😊</button>
+          <button class="key space" data-action="space" type="button">space</button>
+          <button class="key period" data-k="." type="button">.</button>
+          <button class="key go" data-action="go" type="button">return</button>
+        </div>
+
+        <div class="row row5">
+          <button class="key func extra globe" data-action="globe" type="button" aria-label="Globe">
+            <span class="material-symbols-outlined" aria-hidden="true">language</span>
+          </button>
+
+          <button class="key func extra mic" data-action="mic" type="button" aria-label="Microphone">
+            <span class="material-symbols-outlined" aria-hidden="true">mic</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      const overlay = document.getElementById('overlay');
+      const inputDisplay = document.getElementById('inputDisplay');
+      const inputTextEl = document.getElementById('inputText');
+      const outputTextEl = document.getElementById('outputText');
+      const shiftKey = document.getElementById('shiftKey');
+
+      const fsPill = document.getElementById('fsPill');
+      const fsBtn = document.getElementById('fsBtn');
+      const iosHint = document.getElementById('iosHint');
+
+      let value = '';
+      let shift = true; // single-shot shift to start
+
+      // --- Viewport sizing (handles iOS bars / rotations) ---
+      const setVvh = () => {
+        const h = (window.visualViewport && window.visualViewport.height)
+          ? window.visualViewport.height
+          : window.innerHeight;
+
+        document.documentElement.style.setProperty('--vvh', h + 'px');
+      };
+
+      const setVarsForViewport = () => {
+        const w = Math.min(window.innerWidth, 568);
+        const isLandscape = window.innerWidth > window.innerHeight;
+
+        document.documentElement.style.setProperty('--kbW', Math.min(w, window.innerWidth) + 'px');
+        document.documentElement.style.setProperty('--kbH', (isLandscape ? 240 : 320) + 'px');
+        setVvh();
+      };
+
+      // --- Fullscreen support (works on many browsers; NOT true Safari iOS) ---
+      const canFullscreen = () => {
+        const el = document.documentElement;
+        return !!(el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen);
+      };
+
+      const requestFullscreen = async () => {
+        try {
+          const el = document.documentElement;
+          if (el.requestFullscreen) await el.requestFullscreen({ navigationUI: "hide" });
+          else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+          else if (el.msRequestFullscreen) el.msRequestFullscreen();
+        } catch (_) {}
+      };
+
+      const isIos = () => /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+      const isStandalone = () =>
+        (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
+        (navigator.standalone === true);
+
+      const updateChromeHints = () => {
+        // Show Fullscreen button on browsers that support it
+        if (canFullscreen()) fsPill.style.display = 'inline-flex';
+        else fsPill.style.display = 'none';
+
+        // On iOS Safari (not standalone), tell them how to get true fullscreen
+        if (isIos() && !isStandalone()) iosHint.style.display = 'block';
+        else iosHint.style.display = 'none';
+      };
+
+      // --- Keyboard UI logic ---
+      const render = () => {
+        if (value.length) {
+          inputTextEl.textContent = value;
+          inputTextEl.classList.remove('placeholder');
+        } else {
+          inputTextEl.textContent = 'Tap to type…';
+          inputTextEl.classList.add('placeholder');
+        }
+
+        shiftKey.setAttribute('aria-pressed', String(shift));
+        shiftKey.classList.toggle('is-on', shift);
+      };
+
+      const openKb = () => {
+        overlay.classList.remove('hiding');
+        overlay.classList.add('show');
+        overlay.setAttribute('aria-hidden', 'false');
+        setVarsForViewport();
+      };
+
+      const closeKb = () => {
+        if (!overlay.classList.contains('show')) return;
+        overlay.classList.add('hiding');
+        overlay.classList.remove('show');
+        overlay.setAttribute('aria-hidden', 'true');
+      };
+
+      overlay.addEventListener('transitionend', (e) => {
+        if (e.target.classList && e.target.classList.contains('keyboard')) {
+          overlay.classList.remove('hiding');
+        }
+      });
+
+      const pushChar = (ch) => {
+        if (!ch) return;
+        value += ch;
+        if (shift && /[A-Z]/.test(ch)) shift = false;
+        render();
+      };
+
+      const backspace = () => {
+        if (!value) return;
+        value = value.slice(0, -1);
+        render();
+      };
+
+      const go = () => {
+        if (value.length) {
+          outputTextEl.textContent = value;
+          outputTextEl.classList.remove('placeholder');
+        } else {
+          outputTextEl.textContent = 'Nothing yet.';
+          outputTextEl.classList.add('placeholder');
+        }
+      };
+
+      // Tap input opens keyboard
+      inputDisplay.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        openKb();
+      });
+
+      // Tap outside keyboard closes it
+      overlay.addEventListener('pointerdown', (e) => {
+        if (e.target === overlay) closeKb();
+      });
+
+      // Keyboard click delegation
+      overlay.addEventListener('click', (e) => {
+        const btn = e.target.closest('button');
+        if (!btn || btn.classList.contains('disabled')) return;
+
+        const action = btn.dataset.action;
+        const k = btn.dataset.k;
+
+        if (action) {
+          switch (action) {
+            case 'shift': shift = !shift; render(); return;
+            case 'backspace': backspace(); return;
+            case 'space': pushChar(' '); return;
+            case 'go': go(); return;
+            case 'globe': console.log('Globe pressed'); return;
+            case 'mic': console.log('Mic pressed'); return;
+            default: return;
+          }
+        }
+
+        if (k) {
+          const isLetter = /^[a-z]$/i.test(k);
+          const ch = isLetter ? (shift ? k.toUpperCase() : k.toLowerCase()) : k;
+          pushChar(ch);
+        }
+      }, { passive: true });
+
+      // Basic HW keyboard testing
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeKb();
+        if (!overlay.classList.contains('show')) return;
+
+        if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+        if (e.key === 'Backspace') { e.preventDefault(); backspace(); return; }
+        if (e.key === 'Enter') { e.preventDefault(); go(); return; }
+        if (e.key === 'Shift') { shift = true; render(); return; }
+
+        if (e.key.length === 1) {
+          const raw = e.key;
+          if (/^[a-zA-Z .]$/.test(raw)) {
+            e.preventDefault();
+            const isLetter = /^[a-zA-Z]$/.test(raw);
+            const ch = isLetter ? (shift ? raw.toUpperCase() : raw.toLowerCase()) : raw;
+            pushChar(ch);
+          }
+        }
+      }, { passive: false });
+
+      // Fullscreen button
+      fsBtn?.addEventListener('click', () => requestFullscreen());
+
+      // Recompute on viewport changes (iOS Safari address bar, rotation, etc.)
+      window.addEventListener('resize', setVarsForViewport, { passive: true });
+      window.addEventListener('orientationchange', setVarsForViewport, { passive: true });
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', setVarsForViewport, { passive: true });
+        window.visualViewport.addEventListener('scroll', setVarsForViewport, { passive: true });
+      }
+
+      // Optional: keep the page at top to encourage bars to collapse naturally when user scrolls
+      // (doesn't force-hide Safari UI, just helps avoid accidental scroll offsets)
+      window.addEventListener('load', () => window.scrollTo(0, 0), { passive: true });
+
+      setVarsForViewport();
+      updateChromeHints();
+      render();
+    })();
+  </script>
+</body>
+</html>
