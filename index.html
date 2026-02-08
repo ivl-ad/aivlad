@@ -545,7 +545,7 @@
         <div class="dot y" title="Minimize"></div>
         <div class="dot g" title="Expand"></div>
       </div>
-      <div class="title">Finder</div>
+      <div class="title">finder.app</div>
     </div>
 
     <div class="content">
@@ -610,7 +610,7 @@
 </div>
 
 <!-- ===================== Music (CREATOR/CONTACT) ===================== -->
-<div class="wrap" id="wrapMusic" data-app="music" style="display:none; width: 500px;">
+<div class="wrap" id="wrapMusic" data-app="music" style="display:none; width: 400px;">
   <div class="window">
     <div class="titlebar">
       <div class="dots" aria-hidden="true">
@@ -622,10 +622,11 @@
     </div>
     <div class="content">
       <div class="panel">
-        <h3 style="margin-top:16px;">Contact</h3>
+        <h3 style="margin-top:16px;">Reach Out:</h3>
         <div class="grid2">
           <div class="label" style="padding-top:10px;">Email:</div>
-          <div class="out" style="min-height:auto;">[contact@aivlad.com]</div>
+          <div class="out" style="min-height:auto;">team@aivlad.com</div>
+
         </div>
       </div>
     </div>
@@ -640,9 +641,7 @@
 
   <div class="sep" aria-hidden="true"></div>
 
-  <div class="app running active" id="dockVlad" title="aivlad.app">
-    <div class="ico vlad">AI</div>
-  </div>
+ 
 
   <div class="app" id="dockSafari" title="Instructions">
     <div class="ico safari">ⓘ</div>
@@ -650,6 +649,15 @@
   <div class="app" id="dockMusic" title="Contact">
     <div class="ico music">☎</div>
   </div>
+  
+  
+  <div class="sep" aria-hidden="true"></div>
+  
+   <div class="app running active" id="dockVlad" title="aivlad.app">
+    <div class="ico vlad">AI</div>
+  </div>
+  
+  
 </div>
 
 <script>
@@ -941,6 +949,9 @@
 
     let minimized = (wrap.style.display === "none");
     let savedRect = null;
+	
+	let savedPos = null; // add near savedRect
+
 
     const isMobile = () => window.matchMedia("(max-width: 760px), (pointer: coarse)").matches;
 
@@ -1014,6 +1025,13 @@
 
     function minimizeApp() {
       if (minimized) return;
+	  
+	  ensureInitializedToPixels();              // <-- IMPORTANT: converts centered layout to pixel left/top
+savedPos = {
+  left: parseFloat(wrap.style.left),
+  top:  parseFloat(wrap.style.top),
+};
+
 
       dragging = false;
       pointerId = null;
@@ -1058,19 +1076,27 @@
       }
 
       if (isMobile()) {
-        wrap.style.display = "";
-        wrap.classList.remove("minimizing");
-        wrap.classList.remove("restoring");
-        minimized = false;
+  wrap.style.display = "";
+  wrap.classList.remove("minimizing");
+  wrap.classList.remove("restoring");
+  minimized = false;
 
-        requestAnimationFrame(() => {
-          ensureInitializedToPixels();
-          const seed = (++openCount[name]) + Math.floor(Math.random()*3);
-          cascadePlace(wrap, seed);
-          setActive();
-        });
-        return;
-      } else {
+  requestAnimationFrame(() => {
+    ensureInitializedToPixels();
+
+    // ✅ restore where it was (instead of cascadePlace)
+    if (savedPos) {
+      wrap.classList.add("floating");
+      wrap.style.left = `${savedPos.left}px`;
+      wrap.style.top  = `${savedPos.top}px`;
+    }
+
+    clampToBounds(wrap);
+    setActive();
+  });
+  return;
+}
+ else {
         if (initialPlacement) setInitialPosDesktop(initialPlacement);
       }
 
