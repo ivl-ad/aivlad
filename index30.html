@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Chat</title>
+  <style>
+    body{font:14px system-ui,sans-serif;max-width:760px;margin:24px auto;padding:0 12px}
+    textarea,pre,button{width:100%;box-sizing:border-box}
+    textarea{min-height:110px;padding:10px;border:1px solid #ddd;border-radius:8px}
+    button{padding:10px;margin:10px 0;border:1px solid #ddd;border-radius:8px;cursor:pointer}
+    pre{white-space:pre-wrap;padding:10px;border:1px solid #ddd;border-radius:8px;min-height:110px}
+    .row{display:flex;gap:10px;align-items:center}
+    .row button{width:auto;white-space:nowrap}
+    small{opacity:.75}
+  </style>
+</head>
+<body>
+  <h3>Chat</h3>
+
+  <textarea id="in" placeholder="Type something... (Ctrl/Cmd+Enter to send)"></textarea>
+
+  <div class="row">
+    <button id="go">Send</button>
+    <small id="status"></small>
+  </div>
+
+  <pre id="out"></pre>
+
+  <script>
+    // ✅ Set this to your Worker URL after deploy (or local wrangler dev URL for testing)
+    const API = "WORKER_URL_HERE"; // e.g. https://my-chat-worker.your-subdomain.workers.dev
+
+    const $in = document.getElementById("in");
+    const $out = document.getElementById("out");
+    const $go = document.getElementById("go");
+    const $status = document.getElementById("status");
+
+    async function send() {
+      const message = $in.value.trim();
+      if (!message) return;
+
+      $go.disabled = true;
+      $status.textContent = "Sending…";
+      $out.textContent = "…";
+
+      try {
+        const r = await fetch(API, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message })
+        });
+
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(data.error || r.statusText);
+
+        $out.textContent = data.text || "";
+        $status.textContent = "OK";
+      } catch (e) {
+        $out.textContent = "Error: " + (e?.message || e);
+        $status.textContent = "Failed";
+      } finally {
+        $go.disabled = false;
+      }
+    }
+
+    $go.addEventListener("click", send);
+    $in.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) send();
+    });
+  </script>
+</body>
+</html>
