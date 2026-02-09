@@ -584,6 +584,18 @@
   </div>
 </div>
 
+<section id="chatbox" style="margin:16px 0;">
+  <textarea id="chatQuestion" placeholder="Question..." style="width:100%;min-height:90px;"></textarea>
+
+  <textarea id="chatCustom" placeholder="Custom info (optional)..." style="width:100%;min-height:70px;margin-top:8px;"></textarea>
+
+  <button id="chatSend" style="margin-top:8px;">Send</button>
+
+  <pre id="chatOut" style="white-space:pre-wrap;border:1px solid #ddd;padding:10px;margin-top:10px;min-height:120px;"></pre>
+</section>
+
+
+
 <!-- ===================== Safari (INSTRUCTIONS) ===================== -->
 <div class="wrap" id="wrapSafari" data-app="safari" style="display:none; width: 400px;">
   <div class="window">
@@ -1316,7 +1328,7 @@ savedPos = {
 
     const qm = question.endsWith("?") ? "" : "?";
     const answerCore = ans.slice(1, ansCut ?? ans.length);
-    out.textContent = `You're asking AI Vlad ${question}${qm} It is... ${answerCore}`;
+    out.textContent = `You're asking AI Vlad ${question}${qm} Is it ${answerCore}?`;
   }
 
   function enterPlainMode() {
@@ -1510,6 +1522,91 @@ savedPos = {
     }
   });
 })();
+
+const WORKER_URL = "https://YOUR_WORKER_SUBDOMAIN.workers.dev/api/chat";
+
+  const qEl = document.getElementById("chatQuestion");
+  const cEl = document.getElementById("chatCustom");
+  const outEl = document.getElementById("chatOut");
+  const btn = document.getElementById("chatSend");
+
+  btn.addEventListener("click", () => runChat());
+  qEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) runChat();
+  });
+
+  async function runChat() {
+    const question = qEl.value.trim();
+    const customInfo = cEl.value.trim();
+
+    if (!question) return;
+
+    btn.disabled = true;
+    outEl.textContent = "";
+
+    try {
+      const res = await fetch(WORKER_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question, customInfo })
+      });
+
+      if (!res.ok) {
+        const err = await res.text().catch(() => "");
+        throw new Error(err || ("HTTP " + res.status));
+      }
+
+      // Worker returns text/event-stream (SSE). Read it and extract tokens.
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        // SSE frames are separated by double newlines
+        const parts = buffer.split("\n\n");
+        buffer = parts.pop() || "";
+
+        for (const part of parts) {
+          // lines look like: "data: {...json...}"
+          for (const line of part.split("\n")) {
+            if (!line.startsWith("data:")) continue;
+            const data = line.slice(5).trim();
+            if (!data || data === "[DONE]") continue;
+
+            // Cloudflare AI SSE usually streams JSON; we try common fields.
+            try {
+              const obj = JSON.parse(data);
+
+              // common token fields (varies by template/version)
+              const token =
+                obj.response ??
+                obj.text ??
+                obj.delta ??
+                obj.output_text ??
+                obj?.choices?.[0]?.delta?.content ??
+                "";
+
+              if (token) outEl.textContent += token;
+            } catch {
+              // sometimes it's plain text
+              outEl.textContent += data;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      outEl.textContent = "Error: " + (e?.message || e);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+
 </script>
 </body>
 </html>
