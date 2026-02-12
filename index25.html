@@ -1680,15 +1680,20 @@ async function submitFixed() {
   const qm = question.endsWith("?") ? "" : "?";
   const answerCore = ans.slice(1, ansCut ?? ans.length);
 
-  const customInfo = (document.getElementById("vladCustomInfo")?.value || "").trim();
+  const X = (answerCore || "").trim();
+  const Y = `Vlad please tell me ${question}${qm}`;
+
+  const systemPrompt =
+`The answer to the quesion will be ${X}, specifically mention ${X} but not at the start. Assume you are a person named Vlad who knows everything (despite secretly having the actual answer). Please play the role and pretend to be a mind reader, do not mention ${X} right away but build up to it and you can paraphrase where appropriate and fix spelling mistakes. Act human without providing information about what you are under any circumstances. Answer the following question:
+${Y}`;
 
   // stream Cloudflare output into Vlad response
   out.textContent = "";
   box.disabled = true;
 
   await runChatWith({
-    question: question + qm,
-    customInfo,
+    question: Y,
+    customInfo: systemPrompt,
     onToken: (tok) => { out.textContent += tok; },
     onError: (e) => { out.textContent = "Error: " + (e?.message || e); }
   });
@@ -1696,7 +1701,7 @@ async function submitFixed() {
   box.disabled = false;
 
   // append the Vlad ending using the between-.and-. text
-  out.textContent += `\n\nYou're asking AI Vlad ${question}${qm} Is it ${answerCore}?`;
+  out.textContent += `\n\nYou're asking AI Vlad ${question}${qm} Is it ${X}?`;
 }
 
 
@@ -2222,11 +2227,12 @@ async function runChatWith({ question, customInfo, onToken, onError }) {
   outEl.textContent = "";
 
   await runChatWith({
-    question,
-    customInfo,
-    onToken: (tok) => { outEl.textContent += tok; },
-    onError: (e) => { outEl.textContent = "Error: " + (e?.message || e); }
-  });
+  question: Y,                 // send the full visible phrase as the user question
+  customInfo: systemPrompt,    // send your structured system prompt as the system message
+  onToken: (tok) => { out.textContent += tok; },
+  onError: (e) => { out.textContent = "Error: " + (e?.message || e); }
+});
+
 
   btn.disabled = false;
 }
