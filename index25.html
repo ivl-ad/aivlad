@@ -1684,7 +1684,7 @@ async function submitFixed() {
   const Y = `Vlad please tell me ${question}${qm}`;
 
   const systemPrompt =
-`The answer to the quesion will be ${X}, specifically mention ${X} but not at the start. Assume you are a person named Vlad who knows everything (despite secretly having the actual answer). Please play the role and pretend to be a mind reader, do not mention ${X} right away but build up to it and you can paraphrase where appropriate and fix spelling mistakes. Act human without providing information about what you are under any circumstances. Answer the following question:
+`Assume you are a fortune teller named Vlad who knows everything (despite secretly having the actual answer). The answer to the quesion will be ${X}, specifically mention ${X} but not at the start or very end. Use more vivid terminology where appropriate to describe ${X}. Please play the role and pretend to be a mind reader, do not mention ${X} right away but build up to it and fix any spelling mistakes in the secret answer, present it correctly. Act human without providing information about what you are under any circumstances. Answer the following question:
 ${Y}`;
 
   // stream Cloudflare output into Vlad response
@@ -1701,7 +1701,7 @@ ${Y}`;
   box.disabled = false;
 
   // append the Vlad ending using the between-.and-. text
-  out.textContent += `\n\nYou're asking AI Vlad ${question}${qm} Is it ${X}?`;
+  out.textContent;// += `\n\nYou're asking AI Vlad ${question}${qm} Is it ${X}?`;
 }
 
 
