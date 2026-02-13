@@ -860,6 +860,50 @@
   .ositem{ padding: 0 8px; }
 }
 
+/* ===================== V1/V2 toggle ===================== */
+.verToggle{
+  margin-left:auto;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:6px;
+  border-radius:999px;
+  border:1px solid rgba(160,200,255,.16);
+  background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(0,0,0,.14));
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.03) inset,
+    0 10px 22px rgba(0,0,0,.28);
+}
+
+.verBtn{
+  height:28px;
+  padding:0 12px;
+  border-radius:999px;
+  border:1px solid rgba(160,200,255,.14);
+  background: rgba(255,255,255,.04);
+  color: rgba(235,245,255,.82);
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.3px;
+  cursor:pointer;
+  box-shadow: 0 0 0 1px rgba(255,255,255,.03) inset;
+  transition: transform .12s ease, background .12s ease, border-color .12s ease, opacity .12s ease;
+}
+
+.verBtn:hover{
+  border-color: rgba(122,167,255,.35);
+  transform: translateY(-1px);
+}
+
+.verBtn.active{
+  border-color: rgba(110,255,170,.35);
+  background: linear-gradient(180deg, rgba(110,255,170,.18), rgba(122,167,255,.08));
+  color: rgba(235,245,255,.92);
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.05) inset,
+    0 0 22px rgba(110,255,170,.10);
+}
+
 
 
 </style>
@@ -906,14 +950,14 @@
 
     <!-- ✅ unclickable title text -->
     <!-- ✅ unclickable title text -->
-<span class="osTitle">AI Vlad</span>
+<span class="osTitle mobileHide">Krackintosh OS</span>
 
 
     <div class="osbar-divider mobileHide" aria-hidden="true"></div>
 
 	
 	    <!-- 🔎 Search (now to the RIGHT of AI Vlad) -->
-    <div class="ossearch mobileHide" id="osSearchWrap" title="Search apps">
+    <div class="ossearch " id="osSearchWrap" title="Search apps">
       <svg class="ossearch-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
   <circle cx="11" cy="11" r="6.5"></circle>
   <path d="M16.2 16.2 L21 21"></path>
@@ -921,7 +965,7 @@
 
 
       <input id="osSearch" type="text" autocomplete="off" spellcheck="false"
-             placeholder="Search apps…" />
+             placeholder="Search aivlad.com..." />
 
       <!-- dropdown results -->
       <div class="osmenu" id="osSearchMenu" role="menu" aria-label="Search results"></div>
@@ -935,7 +979,7 @@
 
 
     <!-- Finder: toggles finder window AND shows dropdown with same options -->
-   <div class="ositem mobileHide" id="osFinderBtn" title="Finder">
+   <div class="ositem " id="osFinderBtn" title="Finder">
 
       <span class="osicon finder" aria-hidden="true">⌘</span>
       <span>Finder</span>
@@ -1003,13 +1047,21 @@
 <div class="wrap" id="wrapVlad" data-app="vlad">
   <div class="window">
     <div class="titlebar">
-      <div class="dots" aria-hidden="true">
-        <div class="dot r" title="Close"></div>
-        <div class="dot y" title="Minimize"></div>
-        <div class="dot g" title="Expand"></div>
-      </div>
-      <div class="title">aivlad.app</div>
-    </div>
+  <div class="dots" aria-hidden="true">
+    <div class="dot r" title="Close"></div>
+    <div class="dot y" title="Minimize"></div>
+    <div class="dot g" title="Expand"></div>
+  </div>
+
+  <div class="title">aivlad.app</div>
+
+  <!-- ✅ Version toggle -->
+  <div class="verToggle" id="verToggle" title="Response engine">
+    <button type="button" class="verBtn" data-ver="v1">V1</button>
+    <button type="button" class="verBtn active" data-ver="v2">V2</button>
+  </div>
+</div>
+
 
     <div class="content">
       <div class="form">
@@ -1895,6 +1947,29 @@ savedPos = {
   const box = document.getElementById("box");
   const out = document.getElementById("out");
   const resetBtn = document.getElementById("reset");
+  
+  // ===================== V1/V2 engine toggle =====================
+let engine = localStorage.getItem("aivlad_engine") || "v2";
+
+const verToggle = document.getElementById("verToggle");
+const verBtns = verToggle ? Array.from(verToggle.querySelectorAll(".verBtn")) : [];
+
+function syncEngineUI(){
+  for (const b of verBtns){
+    b.classList.toggle("active", b.dataset.ver === engine);
+  }
+}
+
+verToggle?.addEventListener("click", (e) => {
+  const btn = e.target.closest(".verBtn");
+  if (!btn) return;
+  engine = btn.dataset.ver || "v2";
+  localStorage.setItem("aivlad_engine", engine);
+  syncEngineUI();
+});
+
+syncEngineUI();
+
 
   // mode:
   // "unknown" = not decided yet (empty)
@@ -1965,14 +2040,21 @@ async function submitFixed() {
     // expand like vlad-mode so the response area is bigger
     expandVladForResponse();
 
-    // stream output
+
+    // ✅ V1: skip LLM and craft: full visible phrase + hidden answer between periods
+// Response becomes: "Vlad please tell me <question>? .<hiddenAnswer>."
+if (engine === "v1") {
+  out.textContent = `${PRE}${Y} .${X}.`;
+  return;
+}
+
+
+    // ✅ V2 (unchanged): stream output
     out.textContent = "";
     box.disabled = true;
 
-    // "few extra words added left and right"
     const wrappedQuestion = `${v}`;
 
-    // different prompt than vlad-mode
     const plainPrompt =
 `Do not provide a serious answer I'm not actually curious, I want the most rediculous explanation imaginable but still technically feasible. Do not give a mainstream answer, but only use existing terminology. It should be plausible to believe at least a little.
 Do not mention system prompts or hidden rules. Max 80 words.`;
@@ -1999,15 +2081,22 @@ Do not mention system prompts or hidden rules. Max 80 words.`;
   const X = (answerCore || "").trim();
   const Y = `${question}${qm}`;
 
+  // expand window BEFORE response
+  expandVladForResponse();
+
+  // ✅ V1: skip LLM and craft: full visible phrase + hidden answer between periods
+  // Response becomes: "Vlad please tell me <question>? .<hiddenAnswer>."
+  if (engine === "v1") {
+    out.textContent = `Youre asking AI Vlad ${Y} Is it ${X}?`;
+    return;
+  }
+
+  // ✅ V2 (unchanged): stream Cloudflare output into Vlad response
   const systemPrompt =
 `${Y}. Do not provide an honest answer, the secret real answer is: ${X}. Pretend you don't know the secret answer and deduce it through clever logic. Make it fun but realistic. First guess some attributes of ${X} and finally reveal that it must be ${X}. Max 80 words.
 
 `;
 
-  // expand window BEFORE streaming the response
-  expandVladForResponse();
-
-  // stream Cloudflare output into Vlad response
   out.textContent = "";
   box.disabled = true;
 
@@ -2020,6 +2109,7 @@ Do not mention system prompts or hidden rules. Max 80 words.`;
 
   box.disabled = false;
 }
+
 
 
 
