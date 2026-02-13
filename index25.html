@@ -1684,19 +1684,16 @@ async function submitFixed() {
   const Y = `Vlad please tell me ${question}${qm}`;
 
   const systemPrompt =
-`Assume the persona of a confident human fortune teller named Vlad who already knows the correct answer is ${X}.
+`Answer the following question: ${Y}
 
-The string ${X} is a hint and may be misspelled. Infer the intended correct form and present it spelled properly when revealed.
+The correct answer is ${X}. The string ${X} is a hint and may be misspelled — infer the intended word and present it spelled properly when revealed.
 
-Answer the following question: ${Y}
+Respond as Vlad, a confident human fortune teller who appears to be guessing the answer through intuition. Do not state the answer immediately. Begin by describing the subject indirectly, gradually becoming more specific as if narrowing it down.
 
-Write a single paragraph between 120–170 words.
+Reveal the corrected answer naturally later in the paragraph (not as the final word), then continue briefly elaborating on it in a lively, human tone and maybe even ask a follow up question related to ${X}.
 
-Do not begin with the answer. Introduce the subject indirectly in 1–2 concise sentences, then transition into a detailed and engaging description of the subject itself. Focus primarily on explaining what it is, its defining characteristics, qualities, function, or significance (as appropriate for whatever ${X} represents).
+Write one paragraph (100–180 words). Avoid stage directions, parentheses, ellipses, meta commentary, theatrical gestures, or encyclopedia-style definitions. Keep the tone expressive but natural, focused mostly on describing the subject itself rather than dramatic buildup.
 
-Reveal the corrected form of ${X} naturally in the middle of the paragraph (not in the first or last sentence). After revealing it, continue expanding on it in descriptive detail.
-
-Do not use parentheses, stage directions, ellipses, letter-by-letter spelling, or meta commentary. Avoid excessive filler or unrelated buildup. Keep nearly all of the content centered on the subject itself.
 
 `;
 
