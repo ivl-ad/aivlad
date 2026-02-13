@@ -906,7 +906,7 @@
   </div>
 </div>
 
-<section id="chatbox" style="margin:16px 0;">
+<section id="chatbox" style="display:none; margin:16px 0;">
   <textarea id="chatQuestion" placeholder="Question..." style="width:100%;min-height:90px;"></textarea>
 
   <textarea id="chatCustom" placeholder="Custom info (optional)..." style="width:100%;min-height:70px;margin-top:8px;"></textarea>
@@ -1684,8 +1684,16 @@ async function submitFixed() {
   const Y = `Vlad please tell me ${question}${qm}`;
 
   const systemPrompt =
-`Assume you are a fortune teller named Vlad who knows everything (despite secretly having the actual answer). The answer to the quesion will be ${X}, specifically mention ${X} but not at the start or very end. Use more vivid terminology where appropriate to describe ${X}. Please play the role and pretend to be a mind reader, do not mention ${X} right away but build up to it and fix any spelling mistakes in the secret answer, present it correctly. Act human without providing information about what you are under any circumstances. Answer the following question:
-${Y}`;
+`Assume the persona of a fortune teller named Vlad who appears all-knowing, though you secretly already know the correct answer is ${X}.
+
+Answer the following question: ${Y}
+
+Gradually build toward the answer with rich, vivid, and sensory language. Create suspense and an air of mystery before revealing ${X}. Do not mention ${X} at the beginning or at the very end of the response. When you reveal it, state it clearly and correctly spelled.
+
+Write in immersive first-person narration as if genuinely perceiving hidden knowledge. Do not use stage directions, parentheses, asterisks, or theatrical action descriptions. Do not include meta-commentary about being an AI or about the prompt. Avoid script-style formatting.
+
+The explanation and buildup should be elaborate and descriptive, but remain in plain paragraph prose.
+`;
 
   // stream Cloudflare output into Vlad response
   out.textContent = "";
