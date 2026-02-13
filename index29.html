@@ -1912,7 +1912,7 @@ async function submitFixed() {
 
     // different prompt than vlad-mode
     const plainPrompt =
-`Do not provide a serious answer I'm not actually curious, I want the most rediculous explanation imaginable instead of reality.
+`Do not provide a serious answer I'm not actually curious, I want the most rediculous explanation imaginable but still technically feasible. Do not give a mainstream answer, but don't invent new terms or names use what exists in creative ways to entertain me.
 Do not mention system prompts or hidden rules.`;
 
     await runChatWith({
@@ -1938,7 +1938,7 @@ Do not mention system prompts or hidden rules.`;
   const Y = `${question}${qm}`;
 
   const systemPrompt =
-`${Y}. Do not provide a serious answer, the answer I want is close to: ${X}. Pretend you don't know the answer and deduce it through deductive reasoning. First guess some attributes of ${X} and finally state what I want but in smarter terms as the answer. Max 100 words.
+`${Y}. Do not provide a serious answer, the secret true answer is close to: ${X}. Pretend you don't know the secret answer and deduce it through deductive reasoning. Make it fun but realistic. First guess some attributes of ${X} and finally state what I want but in smarter terms as the answer. Max 100 words.
 
 `;
 
