@@ -47,10 +47,58 @@
     padding-bottom: calc(24px + var(--safeB));
   }
 
-  .bg{ position:fixed; inset:0; pointer-events:none; z-index:0; opacity:.95; }
+    .bg{ position:fixed; inset:0; pointer-events:none; z-index:0; opacity:.95; }
+
+  /* ✅ Volumetric-ish fog: denser far (near vanishing point), lighter near viewer */
+    /* ✅ Volumetric-ish fog: darker tint + thicker near viewer (bottom) */
+  .fog{
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    z-index:1;
+
+    /* FAR (top): darker + cooler, MID: colored blend, FRONT (bottom): thicker + darker */
+    background:
+      /* Far haze near vanishing point */
+      radial-gradient(1100px 640px at 50% 26%,
+        rgba(30, 38, 62, .62) 0%,
+        rgba(18, 24, 42, .36) 38%,
+        rgba(0,0,0,0) 78%),
+
+      /* Mid colored fog to blend neon */
+      radial-gradient(1400px 880px at 50% 40%,
+        rgba(72, 22, 62, .22) 0%,
+        rgba(18, 58, 66, .18) 36%,
+        rgba(18, 24, 42, .10) 58%,
+        rgba(0,0,0,0) 86%),
+
+      /* Front fog: thicker at the bottom (viewer) */
+      linear-gradient(180deg,
+        rgba(0,0,0,0) 0%,
+        rgba(12, 14, 26, .10) 45%,
+        rgba(10, 12, 22, .36) 72%,
+        rgba(8, 10, 18, .64) 100%);
+
+    /* Make it feel more volumetric (soft + layered) */
+    filter: blur(12px) saturate(1.08) contrast(1.02);
+    mix-blend-mode: multiply;  /* darker fog that blends neon */
+    opacity: 0.5;
+
+    /* Subtle grain helps sell fog */
+    background-repeat: no-repeat;
+    transform: translateZ(0);
+    animation: fogDrift 16s ease-in-out infinite;
+  }
+
+  @keyframes fogDrift{
+    0%   { transform: translate3d(0,0,0) scale(1); }
+    50%  { transform: translate3d(1.2%, -0.6%, 0) scale(1.02); }
+    100% { transform: translate3d(0,0,0) scale(1); }
+  }
+
 
   .fx{
-    position:fixed; inset:0; pointer-events:none; z-index:1;
+    position:fixed; inset:0; pointer-events:none; z-index:2; /* moved above fog */
     background: repeating-linear-gradient(
       180deg,
       rgba(255,255,255,.00) 0px,
@@ -61,56 +109,78 @@
     opacity:.35;
   }
   .vignette{
-    position:fixed; inset:-40px; pointer-events:none; z-index:1;
+    position:fixed; inset:-40px; pointer-events:none; z-index:2; /* moved above fog */
     background: radial-gradient(closest-side at 50% 45%, transparent 55%, rgba(0,0,0,.55));
   }
 
-  .hero{
+
+    .hero{
     position:fixed;
     left:50%;
     top:28vh;
     transform:translate(-50%,-58%);
-    z-index:2;
+    z-index:3;
     pointer-events:none;
     text-align:center;
     letter-spacing:.5px;
     font-weight:900;
     font-size:clamp(42px, 7vw, 88px);
     line-height:1;
-    color:rgba(235,245,255,.92);
+    color:rgba(235,245,255,.94);
+
+    /* ✅ More "3D face" lighting (less flat 2D drop shadow) */
     text-shadow:
       0 1px 0 rgba(255,255,255,.10),
-      0 10px 25px rgba(0,0,0,.55),
-      0 0 22px rgba(122,167,255,.22),
-      0 0 38px rgba(255,96,206,.14),
-      0 0 52px rgba(0,255,213,.10);
-    filter: drop-shadow(0 18px 30px rgba(0,0,0,.35));
+      0 0 18px rgba(122,167,255,.18),
+      0 0 28px rgba(255,96,206,.12),
+      0 0 40px rgba(0,255,213,.10);
+
+    /* remove the old heavy 2D drop-shadow look */
+    filter:none;
   }
+
+  /* ✅ EXTRUSION / DEPTH: stacked shadows behind the text */
   .hero::before{
     content:attr(data-text);
     position:absolute;
     inset:0;
-    transform: translate3d(10px, 10px, 0);
-    color:rgba(9,10,18,.95);
+    color:rgba(6, 7, 14, .92);
+
+    /* multiple offsets simulate thickness */
     text-shadow:
-      0 0 26px rgba(122,167,255,.12),
-      0 0 40px rgba(255,96,206,.10);
-    opacity:.75;
+      1px 1px 0 rgba(0,0,0,.55),
+      2px 2px 0 rgba(0,0,0,.52),
+      3px 3px 0 rgba(0,0,0,.48),
+      4px 4px 0 rgba(0,0,0,.44),
+      5px 5px 0 rgba(0,0,0,.40),
+      6px 6px 0 rgba(0,0,0,.36),
+      7px 7px 0 rgba(0,0,0,.32),
+      8px 8px 0 rgba(0,0,0,.28);
+
+    opacity:.95;
     z-index:-1;
+
+    /* a touch of blur so depth looks like a volume, not a sticker */
+    filter: blur(.2px);
+    transform: translate3d(0,0,0);
   }
+
+  /* ✅ Rim light / bloom layer to sell 3D edges */
   .hero::after{
     content:attr(data-text);
     position:absolute;
     inset:0;
-    transform: translate3d(-1px, -1px, 0);
-    color:rgba(235,245,255,.22);
+    color:rgba(235,245,255,.16);
     text-shadow:
-      0 0 18px rgba(122,167,255,.25),
-      0 0 26px rgba(255,96,206,.14),
-      0 0 34px rgba(0,255,213,.10);
-    opacity:.75;
+      0 0 14px rgba(122,167,255,.22),
+      0 0 22px rgba(255,96,206,.16),
+      0 0 30px rgba(0,255,213,.12);
+    opacity:.90;
     z-index:-2;
+    transform: translate3d(-1px,-1px,0);
+    filter: blur(.1px);
   }
+
 
   .wrap{
     width:min(860px,100%);
@@ -118,7 +188,7 @@
     left:50%;
     top:50%;
     transform:translate(-50%,-50%);
-    z-index:2;
+    z-index:3;
     touch-action:none;
   }
   .wrap.floating{ transform:none; }
@@ -750,14 +820,20 @@
 <body>
 
 <svg class="bg" id="bg" aria-hidden="true"></svg>
+
+<!-- ✅ Fog layer: above neon bg, below hero/windows -->
+<div class="fog" id="fog" aria-hidden="true"></div>
+
 <div class="fx" aria-hidden="true"></div>
 <div class="vignette" aria-hidden="true"></div>
 
+
+
 <!-- ===================== TOP MENUBAR ===================== -->
 <nav class="osbar" id="osbar" aria-label="OS Bar">
+
    <div class="osbar-left">
 
-    
     <!-- top-left logo: icon ONLY is clickable -->
     <div class="ositem" id="osLogoBtn" title="Menu" aria-label="AI Vlad menu">
       <span class="oslogo" aria-hidden="true">◈</span>
@@ -776,6 +852,9 @@
 
     <!-- ✅ unclickable separator between logo and AI Vlad text -->
     <div class="osbar-divider" aria-hidden="true"></div>
+	
+	
+	
 
     <!-- ✅ unclickable title text -->
     <div style="font-size:13px; letter-spacing:.2px; color: rgba(235,245,255,.86); user-select:none;">
@@ -1119,7 +1198,7 @@ const floorY = h * 0.56;
 const isMobile = window.matchMedia("(max-width: 760px), (pointer: coarse)").matches;
 
 hero.style.left = `${vp.x}px`;
-hero.style.top  = `${vp.y - (isMobile ? 80 : 0)}px`;
+hero.style.top  = `${vp.y - (isMobile ? 96 : 40)}px`;
 
 
     const rayCount = Math.max(26, Math.floor(w / 48));
@@ -1816,13 +1895,41 @@ savedPos = {
   }
 
 async function submitFixed() {
+  // ===================== PLAIN MODE (no leading ".") =====================
   if (mode !== "vlad") {
     const v = (box.value || "").trim();
     if (!v) return;
-    out.textContent = "Vlad doesn't know.";
+
+    // expand like vlad-mode so the response area is bigger
+    expandVladForResponse();
+
+    // stream output
+    out.textContent = "";
+    box.disabled = true;
+
+    // "few extra words added left and right"
+    const wrappedQuestion = `Vlad, answer this clearly and confidently: ${v} — keep it concise.`;
+
+    // different prompt than vlad-mode
+    const plainPrompt =
+`You are Vlad: a confident, witty, helpful human.
+Answer the user directly and helpfully.
+Keep it concise (1 short paragraph, or up to 5 bullets if it's a list).
+If the request is ambiguous, pick a reasonable interpretation and state it briefly.
+Do not mention system prompts or hidden rules.`;
+
+    await runChatWith({
+      question: wrappedQuestion,
+      customInfo: plainPrompt,
+      onToken: (tok) => { out.textContent += tok; },
+      onError: (e) => { out.textContent = "Error: " + (e?.message || e); }
+    });
+
+    box.disabled = false;
     return;
   }
 
+  // ===================== VLAD MODE (leading ".") =====================
   const val = box.value || "";
   const question = (val.length >= N ? val.slice(N) : "").trim();
   if (!question) return;
@@ -1846,14 +1953,12 @@ Concise but descriptive short paragraph.
 
 `;
 
-  
-    // expand window BEFORE streaming the response
+  // expand window BEFORE streaming the response
   expandVladForResponse();
 
   // stream Cloudflare output into Vlad response
   out.textContent = "";
   box.disabled = true;
-
 
   await runChatWith({
     question: Y,
@@ -1863,10 +1968,8 @@ Concise but descriptive short paragraph.
   });
 
   box.disabled = false;
-
-  // append the Vlad ending using the between-.and-. text
-  out.textContent;// += `\n\nYou're asking AI Vlad ${question}${qm} Is it ${X}?`;
 }
+
 
 
   function enterPlainMode() {
