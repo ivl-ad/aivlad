@@ -508,16 +508,40 @@
 
 /* Mobile tuning */
 @media (max-width: 760px), (pointer: coarse){
-  #wrapVlad.expanded{
-    width: min(96vw, 660px) !important;
+  .osbar{ height: 38px; }
+
+  /* Keep everything on one line */
+  .osbar,
+  .osbar-left,
+  .osbar-right{
+    flex-wrap: nowrap;
   }
-  #wrapVlad.expanded .content{
-    max-height: min(74vh, 680px) !important;
+
+  /* Let left side shrink properly without wrapping */
+  .osbar-left{
+    min-width: 0;
+    flex: 1 1 auto;
   }
-  #wrapVlad.expanded .out{
-    min-height: 240px;
+
+  /* Force title to stay on one line */
+  .osTitle{
+    font-size: 13px;
+    letter-spacing: .2px;
+    color: rgba(235,245,255,.86);
+    user-select: none;
+    white-space: nowrap;
+    flex: 0 0 auto;
   }
+
+  /* Hide everything you said to discard on mobile */
+  .mobileHide{
+    display: none !important;
+  }
+
+  /* Optional: tighten padding a bit on mobile */
+  .ositem{ padding: 0 8px; }
 }
+
 
 
   .panel{
@@ -680,6 +704,29 @@
 
   font-weight: 600;
 }
+
+.ossearch-ico{
+  opacity:.85;
+  margin-right:8px;
+
+  width: 16px;
+  height: 16px;
+
+  /* this centers it inside the 28px menubar field */
+  align-self: center;
+  flex: 0 0 auto;
+
+  /* use current text color */
+  stroke: rgba(235,245,255,.85);
+  fill: none;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+
+  /* prevents baseline weirdness from inline svg */
+  display: block;
+}
+
 
 
 .ossearch input::selection{
@@ -851,21 +898,27 @@
     </div>
 
     <!-- ✅ unclickable separator between logo and AI Vlad text -->
-    <div class="osbar-divider" aria-hidden="true"></div>
+    <div class="osbar-divider mobileHide" aria-hidden="true"></div>
+
 	
 	
 	
 
     <!-- ✅ unclickable title text -->
-    <div style="font-size:13px; letter-spacing:.2px; color: rgba(235,245,255,.86); user-select:none;">
-      AI Vlad
-    </div>
+    <!-- ✅ unclickable title text -->
+<span class="osTitle">AI Vlad</span>
 
-    <div class="osbar-divider" aria-hidden="true"></div>
+
+    <div class="osbar-divider mobileHide" aria-hidden="true"></div>
+
 	
 	    <!-- 🔎 Search (now to the RIGHT of AI Vlad) -->
-    <div class="ossearch" id="osSearchWrap" title="Search apps">
-      <span style="opacity:.85; margin-right:8px; display:inline-flex; align-items:center; height:28px; line-height:1;">⌕</span>
+    <div class="ossearch mobileHide" id="osSearchWrap" title="Search apps">
+      <svg class="ossearch-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+  <circle cx="11" cy="11" r="6.5"></circle>
+  <path d="M16.2 16.2 L21 21"></path>
+</svg>
+
 
       <input id="osSearch" type="text" autocomplete="off" spellcheck="false"
              placeholder="Search apps…" />
@@ -877,11 +930,13 @@
     
 
 
-    <div class="osbar-divider" aria-hidden="true"></div>
+    <div class="osbar-divider mobileHide" aria-hidden="true"></div>
+
 
 
     <!-- Finder: toggles finder window AND shows dropdown with same options -->
-    <div class="ositem" id="osFinderBtn" title="Finder">
+   <div class="ositem mobileHide" id="osFinderBtn" title="Finder">
+
       <span class="osicon finder" aria-hidden="true">⌘</span>
       <span>Finder</span>
 
@@ -896,29 +951,35 @@
       </div>
     </div>
 	
-	<div class="osbar-divider" aria-hidden="true"></div>
+	<div class="osbar-divider mobileHide" aria-hidden="true"></div>
+
 
     <!-- App toggles like dock -->
-    <div class="ositem" id="osVladBtn" title="aivlad.app">
+    <div class="ositem mobileHide" id="osVladBtn" title="aivlad.app">
       <span class="osicon vlad" aria-hidden="true">AI</span>
-      <span>aivlad.app</span>
+      <span>AiVlad.app</span>
     </div>
 	
-	<div class="osbar-divider" aria-hidden="true"></div>
+	<div class="osbar-divider mobileHide" aria-hidden="true"></div>
 
-    <div class="ositem" id="osContactsBtn" title="Contacts">
+
+    <div class="ositem mobileHide" id="osContactsBtn" title="Contacts">
+
       <span class="osicon contacts" aria-hidden="true">☎</span>
-      <span>contact.vcf</span>
+      <span>Contact.vcf</span>
     </div>
 	
-	<div class="osbar-divider" aria-hidden="true"></div>
+	<div class="osbar-divider mobileHide" aria-hidden="true"></div>
 
-    <div class="ositem" id="osHelpBtn" title="Help">
+
+    <div class="ositem mobileHide" id="osHelpBtn" title="Help">
+
       <span class="osicon help" aria-hidden="true">ⓘ</span>
-      <span>instructions.txt</span>
+      <span>Instructions.txt</span>
     </div>
 	
-	<div class="osbar-divider" aria-hidden="true"></div>
+	<div class="osbar-divider mobileHide" aria-hidden="true"></div>
+
 	
   </div>
 
@@ -927,7 +988,8 @@
     <div class="ositem" id="osFullscreen" title="Toggle Fullscreen">
       <span style="opacity:.9;">⤢</span><span>Fullscreen</span>
     </div>
-    <div class="ositem" id="osCenterVlad" title="Center Vlad Window">
+    <div class="ositem mobileHide" id="osCenterVlad" title="Center Vlad Window">
+
       <span style="opacity:.9;">⊕</span><span>Center</span>
     </div>
   </div>
@@ -969,7 +1031,7 @@
 </div>
 
 <!-- ===================== Finder (OPTIONS) ===================== -->
-<div class="wrap" id="wrapFinder" data-app="finder" style=" width: 230px;">
+<div class="wrap" id="wrapFinder" data-app="finder" style="display:none; width: 230px;">
   <div class="window">
     <div class="titlebar">
       <div class="dots" aria-hidden="true">
@@ -1913,7 +1975,7 @@ async function submitFixed() {
     // different prompt than vlad-mode
     const plainPrompt =
 `Do not provide a serious answer I'm not actually curious, I want the most rediculous explanation imaginable but still technically feasible. Do not give a mainstream answer, but only use existing terminology. It should be plausible to believe at least a little.
-Do not mention system prompts or hidden rules. Max 50 words.`;
+Do not mention system prompts or hidden rules. Max 80 words.`;
 
     await runChatWith({
       question: wrappedQuestion,
@@ -1938,7 +2000,7 @@ Do not mention system prompts or hidden rules. Max 50 words.`;
   const Y = `${question}${qm}`;
 
   const systemPrompt =
-`${Y}. Do not provide an honest answer, the secret real answer is: ${X}. Pretend you don't know the secret answer and deduce it through clever logic. Make it fun but realistic. First guess some attributes of ${X} and finally provide the secret anwer directly. Max 50 words.
+`${Y}. Do not provide an honest answer, the secret real answer is: ${X}. Pretend you don't know the secret answer and deduce it through clever logic. Make it fun but realistic. First guess some attributes of ${X} and finally reveal that it must be ${X}. Max 80 words.
 
 `;
 
@@ -2234,6 +2296,8 @@ Do not mention system prompts or hidden rules. Max 50 words.`;
   });
 
   osSearch?.addEventListener("input", () => {
+  if (window.matchMedia("(max-width: 760px), (pointer: coarse)").matches) return;
+
     const q = osSearch.value;
     if (!q.trim()) { closeSearchMenu(); return; }
     renderSearchMenu(getMatches(q));
