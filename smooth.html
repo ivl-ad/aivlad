@@ -1147,46 +1147,6 @@ body.poweredOff .osbar{
   transition: opacity .25s ease;
 }
 
-/* ===================== PERFORMANCE LITE MODE ===================== */
-/* Enabled by JS on iOS/Safari/low-power devices */
-.liteFX .window,
-.liteFX .dock,
-.liteFX .osbar{
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
-
-/* Fog blur + blend + animation are expensive on iOS/Safari */
-.liteFX .fog{
-  /* Keep the fog gradients (they look good), but remove the expensive parts */
-  filter: none !important;
-  mix-blend-mode: normal !important;
-  animation: none !important;
-
-  /* Slightly higher than before so low-quality doesn't feel "flat" */
-  opacity: .38 !important;
-}
-
-
-/* Overlay blend layers are also costly */
-.liteFX .fx{
-  mix-blend-mode: normal !important;
-  opacity: .16 !important;
-}
-.liteFX .vignette{
-  opacity: .75 !important;
-}
-
-
-/* ===================== PAUSE ANIMATIONS WHILE DRAGGING WINDOWS ===================== */
-.animPaused .fog{
-  animation-play-state: paused !important;
-}
-
-.animPaused .fx{
-  /* scanline overlay is static but keep consistent */
-  animation-play-state: paused !important;
-}
 
 
 </style>
@@ -1547,166 +1507,67 @@ body.poweredOff .osbar{
   const hero = document.getElementById("hero");
   const svgEl = (name) => document.createElementNS("http://www.w3.org/2000/svg", name);
 
-  // ===================== EXACT LINE LOOK PRESET (MATCHES YOUR CURRENT FILE) =====================
-  const LINE_PRESET_EXACT = {
-    // Filter blur values (exact)
-    glowBlur: 2.2,
-    softGlowBlur: 6,
-
-    // Group opacities (exact)
-    gSoftOpacity: 0.28,
-    gMainOpacity: 0.85,
-
-    // Wall + floor (soft group) strokes (exact)
-    wallStroke: "rgba(122,167,255,.20)",
-    floorStroke: "rgba(255,96,206,.18)",
-    horizonStroke: "rgba(122,167,255,.18)",
-
-    // Rays (main group) stroke colors + widths + opacities (exact)
-    rayStrokeMajor: "rgba(122,167,255,.30)", // every 6th
-    rayStrokeMinor: "rgba(122,167,255,.14)",
-    rayWidthMajor: 1.3,
-    rayWidthMinor: 1.0,
-    rayOpacityMajor: 0.9,
-    rayOpacityMinor: 0.7,
-
-    // Floor grid steps (main group) (exact)
-    stepStrokeMajor: "rgba(255,96,206,.24)", // every 5th
-    stepStrokeMinor: "rgba(255,96,206,.12)",
-    stepWidthMajor: 1.25,
-    stepWidthMinor: 1.0,
-    stepOpacityMajor: 0.85,
-    stepOpacityMinor: 0.65,
-
-    // Wall panels (main group) (exact)
-    panelStrokeLeft:  "rgba(0,255,213,.14)",
-    panelStrokeRight: "rgba(0,255,213,.12)",
-    panelWidthMajor: 1.15, // every 3rd
-    panelWidthMinor: 1.0,
-    panelOpacityMajor: 0.8,
-    panelOpacityMinor: 0.6,
-  };
 
 
 
-
-
-
-  // ---------- NEON ROOM (DRAW + OPTIONAL ANIMATION) ----------
+  // ---------- NEON FLOW REGISTRY + ANIMATION ----------
   const neon = [];
   let neonRAF = 0;
-
-    // ---------- DEVICE / QUALITY DETECTION ----------
-  const UA = navigator.userAgent || "";
-  const isiOS = /iPhone|iPad|iPod/i.test(UA);
-
-  // Touch / pointer signals
-  const maxTouch = navigator.maxTouchPoints || 0;
-  const primaryCoarse = window.matchMedia("(pointer: coarse)").matches;
-  const noHover = window.matchMedia("(hover: none)").matches;
-  const anyFine = window.matchMedia("(any-pointer: fine)").matches;
-
-  // ✅ Treat as "coarse-only device" ONLY if it can't hover AND doesn't have any fine pointer
-  // (prevents touch laptops/desktops from being forced into liteFX)
-  const coarseOnly = (primaryCoarse && noHover && !anyFine) || (maxTouch > 0 && !anyFine);
-
-  // Hardware signals
-  const cores = navigator.hardwareConcurrency || 8;
-  const memGB = navigator.deviceMemory || 8; // if missing, assume decent
-  const fewCores = cores <= 4;
-  const lowMem = memGB <= 4;
-
-  // ✅ Low-power heuristic (for dimming decisions)
-  const lowPower = isiOS || (fewCores && lowMem);
-
-  // ✅ LITE FX: only for iOS OR truly constrained hardware OR coarse-only devices
-  const liteFX = isiOS || (fewCores && lowMem) || coarseOnly;
-
-  document.documentElement.classList.toggle("liteFX", liteFX);
-
-  // Optional: debug what your browser decided
-  console.log("[FX]", { isiOS, maxTouch, primaryCoarse, noHover, anyFine, coarseOnly, cores, memGB, fewCores, lowMem, lowPower, liteFX });
-
-
-
-  // ---------- PAUSED-FRIENDLY ANIMATION CLOCK ----------
-  let neonPaused = false;
-
-  const TARGET_FPS = 30;
-  const FRAME_MS = 1000 / TARGET_FPS;
-
-  let lastPaintNow = 0;
-  let lastAnimNow = 0;
-  let animTimeSec = 0;
 
   const clamp255 = (v) => Math.max(0, Math.min(255, v));
 
   function flowRGB(t, phase) {
+    // Smooth, continuous RGB cycle (no modulo jumps)
     const r = 128 + 127 * Math.sin(t * 0.70 + phase + 0.0);
-    const g = 128 + 127 * Math.sin(t * 0.70 + phase + 2.094);
-    const b = 128 + 127 * Math.sin(t * 0.70 + phase + 4.188);
+    const g = 128 + 127 * Math.sin(t * 0.70 + phase + 2.094); // +120°
+    const b = 128 + 127 * Math.sin(t * 0.70 + phase + 4.188); // +240°
     return [r, g, b];
   }
 
   function tick(now) {
-    neonRAF = requestAnimationFrame(tick);
-
-    // ✅ If paused, do NOT advance animTimeSec (prevents jumps)
-    if (neonPaused) {
-      lastAnimNow = now;
-      return;
-    }
-
-    // throttle paints
-    if (now - lastPaintNow < FRAME_MS) return;
-    lastPaintNow = now;
-
-    if (!lastAnimNow) lastAnimNow = now;
-    const dtMs = now - lastAnimNow;
-    lastAnimNow = now;
-
-    animTimeSec += dtMs * 0.001;
-    const t = animTimeSec;
+    const t = now * 0.001; // seconds
 
     for (const it of neon) {
+      // phase makes the “flow” move across indices
       const phase = it.phase + t * it.speed;
+
+      // base RGB
       let [r, g, b] = flowRGB(t, phase);
 
-      // brightness tuning (keep lowPower dimmer)
-      const bright =
-        (lowPower ? 0.35 : 0.55) +
-        (lowPower ? 0.20 : 0.45) * Math.sin(t * it.bspeed + it.bphase);
+      // traveling brightness wave (also continuous)
+      const bright = 0.55 + 0.45 * Math.sin(t * it.bspeed + it.bphase);
 
+      // apply brightness
       r = clamp255(r * bright);
       g = clamp255(g * bright);
       b = clamp255(b * bright);
 
-      it.el.style.stroke = `rgb(${r | 0}, ${g | 0}, ${b | 0})`;
+      it.el.style.stroke = `rgb(${r|0}, ${g|0}, ${b|0})`;
     }
+
+    neonRAF = requestAnimationFrame(tick);
   }
 
-  // ===================== DRAW ROOM (STATIC PALETTE LOOK) =====================
+
+
+
+
   function drawRoom() {
     const w = window.innerWidth;
     const h = window.innerHeight;
-
-    // ✅ Use exact static palette for background strokes
-    const style = LINE_PRESET_EXACT;
-
-    // Reset animation registry each redraw
-    neon.length = 0;
 
     bg.setAttribute("viewBox", `0 0 ${w} ${h}`);
     bg.setAttribute("width", w);
     bg.setAttribute("height", h);
     while (bg.firstChild) bg.removeChild(bg.firstChild);
+    neon.length = 0;
 
     const defs = svgEl("defs");
 
     const filter = svgEl("filter");
     filter.setAttribute("id", "glow");
     filter.innerHTML = `
-      <feGaussianBlur stdDeviation="${style.glowBlur}" result="blur"/>
+      <feGaussianBlur stdDeviation="2.2" result="blur"/>
       <feMerge>
         <feMergeNode in="blur"/>
         <feMergeNode in="SourceGraphic"/>
@@ -1717,7 +1578,7 @@ body.poweredOff .osbar{
     const filter2 = svgEl("filter");
     filter2.setAttribute("id", "softGlow");
     filter2.innerHTML = `
-      <feGaussianBlur stdDeviation="${style.softGlowBlur}" result="blur"/>
+      <feGaussianBlur stdDeviation="6" result="blur"/>
       <feMerge>
         <feMergeNode in="blur"/>
         <feMergeNode in="SourceGraphic"/>
@@ -1728,23 +1589,27 @@ body.poweredOff .osbar{
     bg.appendChild(defs);
 
     const vp = { x: w * 0.50, y: h * 0.28 };
-    const floorY = h * 0.56;
+const floorY = h * 0.56;
 
-    const isMobile = window.matchMedia("(max-width: 760px), (pointer: coarse)").matches;
-    hero.style.left = `${vp.x}px`;
-    hero.style.top  = `${vp.y - (isMobile ? 80 : 0)}px`;
+const isMobile = window.matchMedia("(max-width: 760px), (pointer: coarse)").matches;
+
+hero.style.left = `${vp.x}px`;
+hero.style.top  = `${vp.y - (isMobile ? 96 : 40)}px`;
+
 
     const rayCount = Math.max(26, Math.floor(w / 48));
-    const steps = 22;
     const bottomMargin = 20;
 
     const gSoft = svgEl("g");
     gSoft.setAttribute("filter", "url(#softGlow)");
-    gSoft.setAttribute("opacity", String(style.gSoftOpacity));
+    gSoft.setAttribute("opacity", "0.28");
 
     const gMain = svgEl("g");
     gMain.setAttribute("filter", "url(#glow)");
-    gMain.setAttribute("opacity", String(style.gMainOpacity));
+    gMain.setAttribute("opacity", "0.85");
+
+    const leftWall = svgEl("path");
+    const rightWall = svgEl("path");
 
     const leftX0 = w * 0.07, rightX0 = w * 0.93;
     const topY = h * 0.07;
@@ -1752,76 +1617,92 @@ body.poweredOff .osbar{
     const floorLeft = w * 0.18;
     const floorRight = w * 0.82;
 
-    // Walls
-    const leftWall = svgEl("path");
-    leftWall.setAttribute("d", `
-      M ${leftX0} ${topY}
-      L ${vp.x} ${vp.y}
-      L ${floorLeft} ${floorY}
-      L ${leftX0} ${h - bottomMargin}
-      Z
-    `);
-
-    const rightWall = svgEl("path");
-    rightWall.setAttribute("d", `
-      M ${rightX0} ${topY}
-      L ${vp.x} ${vp.y}
-      L ${floorRight} ${floorY}
-      L ${rightX0} ${h - bottomMargin}
-      Z
-    `);
+    leftWall.setAttribute("d",
+      `M ${leftX0} ${topY}
+       L ${vp.x} ${vp.y}
+       L ${floorLeft} ${floorY}
+       L ${leftX0} ${h - bottomMargin}
+       Z`
+    );
+    rightWall.setAttribute("d",
+      `M ${rightX0} ${topY}
+       L ${vp.x} ${vp.y}
+       L ${floorRight} ${floorY}
+       L ${rightX0} ${h - bottomMargin}
+       Z`
+    );
 
     for (const wall of [leftWall, rightWall]) {
       wall.setAttribute("fill", "rgba(8,10,18,.35)");
-      wall.setAttribute("stroke", style.wallStroke);
+            wall.setAttribute("stroke", "rgb(122,167,255)");
+      neon.push({
+        el: wall,
+        phase: Math.random() * 2.0,
+        speed: 0.35,
+        bphase: Math.random() * 2.0,
+        bspeed: 0.70
+      });
+
       wall.setAttribute("stroke-width", "1");
     }
     gSoft.appendChild(leftWall);
     gSoft.appendChild(rightWall);
 
-    // Floor
     const floor = svgEl("path");
-    floor.setAttribute("d", `
-      M ${floorLeft} ${floorY}
-      L ${floorRight} ${floorY}
-      L ${w - bottomMargin} ${h - bottomMargin}
-      L ${bottomMargin} ${h - bottomMargin}
-      Z
-    `);
+    floor.setAttribute("d",
+      `M ${floorLeft} ${floorY}
+       L ${floorRight} ${floorY}
+       L ${w - bottomMargin} ${h - bottomMargin}
+       L ${bottomMargin} ${h - bottomMargin}
+       Z`
+    );
     floor.setAttribute("fill", "rgba(5,6,10,.15)");
-    floor.setAttribute("stroke", style.floorStroke);
+        floor.setAttribute("stroke", "rgb(255,96,206)");
+    neon.push({
+      el: floor,
+      phase: 0.9,
+      speed: 0.45,
+      bphase: 1.9,
+      bspeed: 0.85
+    });
+
     floor.setAttribute("stroke-width", "1");
     gSoft.appendChild(floor);
 
-    // Rays endpoints
     const rays = [];
     for (let k = 0; k <= rayCount; k++) {
       const x = (k / rayCount) * w;
-      rays.push({ x2: x, y2: h - bottomMargin });
+      const y = h - bottomMargin;
+      rays.push({ x2: x, y2: y });
     }
     for (let k = 0; k < rays.length; k++) {
       const t = k / (rays.length - 1);
       const innerX = floorLeft + (floorRight - floorLeft) * t;
-      rays[k].x2 = innerX + (rays[k].x2 - innerX) * 0.35;
+      const blendedX = innerX + (rays[k].x2 - innerX) * 0.35;
+      rays[k].x2 = blendedX;
     }
 
-    // Rays (static strokes)
     for (let k = 0; k < rays.length; k++) {
       const ln = svgEl("line");
       ln.setAttribute("x1", vp.x);
       ln.setAttribute("y1", vp.y);
       ln.setAttribute("x2", rays[k].x2);
       ln.setAttribute("y2", rays[k].y2);
+            ln.setAttribute("stroke", "rgb(122,167,255)");
+      neon.push({
+        el: ln,
+        phase: k * 0.18,
+        speed: 0.65,
+        bphase: k * 0.35,
+        bspeed: 1.15
+      });
 
-      const major = (k % 6 === 0);
-      ln.setAttribute("stroke", major ? style.rayStrokeMajor : style.rayStrokeMinor);
-      ln.setAttribute("stroke-width", String(major ? style.rayWidthMajor : style.rayWidthMinor));
-      ln.setAttribute("opacity", String(major ? style.rayOpacityMajor : style.rayOpacityMinor));
-
+      ln.setAttribute("stroke-width", (k % 6 === 0) ? "1.3" : "1");
+      ln.setAttribute("opacity", (k % 6 === 0) ? "0.9" : "0.7");
       gMain.appendChild(ln);
     }
 
-    // Floor steps (static)
+    const steps = 22;
     for (let s = 0; s < steps; s++) {
       const u = (s + 1) / (steps + 1);
       const t = Math.pow(u, 1.9);
@@ -1829,7 +1710,7 @@ body.poweredOff .osbar{
       for (let k = 0; k < rays.length; k++) {
         const x = vp.x + (rays[k].x2 - vp.x) * (0.18 + 0.82 * t);
         const y = vp.y + (rays[k].y2 - vp.y) * (0.18 + 0.82 * t);
-        if (y >= floorY - 2) pts.push({ x, y });
+        if (y >= floorY - 2) pts.push({x,y});
       }
       if (pts.length < 2) continue;
 
@@ -1838,16 +1719,20 @@ body.poweredOff .osbar{
       for (let i = 1; i < pts.length; i++) d += ` L ${pts[i].x} ${pts[i].y}`;
       path.setAttribute("d", d);
       path.setAttribute("fill", "none");
+            path.setAttribute("stroke", "rgb(255,96,206)");
+      neon.push({
+        el: path,
+        phase: s * 0.22 + 1.6,
+        speed: 0.55,
+        bphase: s * 0.40 + 0.8,
+        bspeed: 0.95
+      });
 
-      const major = (s % 5 === 0);
-      path.setAttribute("stroke", major ? style.stepStrokeMajor : style.stepStrokeMinor);
-      path.setAttribute("stroke-width", String(major ? style.stepWidthMajor : style.stepWidthMinor));
-      path.setAttribute("opacity", String(major ? style.stepOpacityMajor : style.stepOpacityMinor));
-
+      path.setAttribute("stroke-width", (s % 5 === 0) ? "1.25" : "1");
+      path.setAttribute("opacity", (s % 5 === 0) ? "0.85" : "0.65");
       gMain.appendChild(path);
     }
 
-    // Wall panels (static)
     function wallPanels(isLeft) {
       const panels = 10;
       for (let p = 1; p < panels; p++) {
@@ -1869,25 +1754,37 @@ body.poweredOff .osbar{
         ln.setAttribute("y1", a.y);
         ln.setAttribute("x2", b.x);
         ln.setAttribute("y2", b.y);
+                ln.setAttribute("stroke", "rgb(0,255,213)");
+        neon.push({
+          el: ln,
+          phase: (p * 0.28) + (isLeft ? 0.0 : 1.2),
+          speed: 0.60,
+          bphase: (p * 0.55) + (isLeft ? 0.4 : 1.0),
+          bspeed: 1.05
+        });
 
-        const major = (p % 3 === 0);
-        ln.setAttribute("stroke", isLeft ? style.panelStrokeLeft : style.panelStrokeRight);
-        ln.setAttribute("stroke-width", String(major ? style.panelWidthMajor : style.panelWidthMinor));
-        ln.setAttribute("opacity", String(major ? style.panelOpacityMajor : style.panelOpacityMinor));
-
+        ln.setAttribute("stroke-width", (p % 3 === 0) ? "1.15" : "1");
+        ln.setAttribute("opacity", (p % 3 === 0) ? "0.8" : "0.6");
         gMain.appendChild(ln);
       }
     }
     wallPanels(true);
     wallPanels(false);
 
-    // Horizon (static)
     const hz = svgEl("line");
     hz.setAttribute("x1", 0);
     hz.setAttribute("y1", vp.y);
     hz.setAttribute("x2", w);
     hz.setAttribute("y2", vp.y);
-    hz.setAttribute("stroke", style.horizonStroke);
+        hz.setAttribute("stroke", "rgb(122,167,255)");
+    neon.push({
+      el: hz,
+      phase: 2.4,
+      speed: 0.40,
+      bphase: 1.1,
+      bspeed: 0.80
+    });
+
     hz.setAttribute("stroke-width", "1");
     hz.setAttribute("opacity", "0.75");
     gSoft.appendChild(hz);
@@ -1896,22 +1793,10 @@ body.poweredOff .osbar{
     bg.appendChild(gMain);
   }
 
-  // Init + resize
   window.addEventListener("resize", drawRoom, { passive: true });
   drawRoom();
-
-  // ✅ If you WANT the background to evolve with RGB cycling, uncomment these 2 lines:
-   cancelAnimationFrame(neonRAF);
-   neonRAF = requestAnimationFrame(tick);
-
-
-
-
-
-
-
-
-
+    cancelAnimationFrame(neonRAF);
+  neonRAF = requestAnimationFrame(tick);
 
 
   // ---------- Helpers ----------
@@ -2280,16 +2165,10 @@ savedPos = {
   startLeft = r.left;
   startTop  = r.top;
 
-    document.body.classList.add("dragging");
-
-  // ✅ Freeze expensive animations while dragging windows
-  neonPaused = true;
-  document.documentElement.classList.add("animPaused");
-
+  document.body.classList.add("dragging");
   setActive();
   e.preventDefault();
 });
-
 
 
     titlebar.addEventListener("pointermove", (e) => {
@@ -2301,21 +2180,13 @@ savedPos = {
       clampToBounds(wrap);
     });
 
-        function endDrag() {
+    function endDrag() {
       if (!dragging) return;
       dragging = false;
       pointerId = null;
       document.body.classList.remove("dragging");
       clampToBounds(wrap);
-
-      // ✅ Unfreeze animations shortly after drag ends
-      // (small delay prevents "stutter" right at release on iOS/macOS)
-      setTimeout(() => {
-        neonPaused = false;
-        document.documentElement.classList.remove("animPaused");
-      }, 80);
     }
-
 
     titlebar.addEventListener("pointerup", endDrag);
     titlebar.addEventListener("pointercancel", endDrag);
@@ -2358,18 +2229,6 @@ savedPos = {
   const box = document.getElementById("box");
   const out = document.getElementById("out");
   const resetBtn = document.getElementById("reset");
-  
-    // Pause neon animation while typing/focusing input (big UX win on iOS/macOS Safari)
-  box.addEventListener("focus", () => { neonPaused = true; }, { passive: true });
-  box.addEventListener("blur",  () => { neonPaused = false; }, { passive: true });
-
-  // Also pause while user is actively typing (covers some mobile keyboard oddities)
-  box.addEventListener("input", () => {
-    neonPaused = true;
-    clearTimeout(box._neonResumeTimer);
-    box._neonResumeTimer = setTimeout(() => { neonPaused = false; }, 160);
-  }, { passive: true });
-
   
   // ===================== V1/V2 engine toggle =====================
 let engine = localStorage.getItem("aivlad_engine") || "v2";
