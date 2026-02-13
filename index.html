@@ -256,20 +256,23 @@
   .content{padding:16px}
 
   .form{
-    display:grid;
-    grid-template-columns: 140px 1fr;
-    column-gap:14px;
-    row-gap:14px;
-    align-items:start;
-  }
-  .label{
-    padding-top:12px;
-    font-size:14px;
-    color:var(--muted);
-    letter-spacing:.2px;
-    user-select:none;
-    -webkit-user-select:none;
-  }
+  display:grid;
+  grid-template-columns: 140px 1fr;
+  column-gap:14px;
+  row-gap:14px;
+  align-items:start;
+}
+
+
+.label{
+  padding-top:12px;
+  font-size:14px;
+  color:var(--muted);
+  letter-spacing:.2px;
+  user-select:none;
+  -webkit-user-select:none;
+}
+
 
   input{
     width:100%;
@@ -486,10 +489,22 @@
     flex-direction:column;
   }
   .wrap.fullscreen .form{
-    flex: 1;
-    grid-template-columns: 160px 1fr;
-    align-content:start;
+  flex: 1;
+  grid-template-columns: 140px 1fr;
+  align-content:start;
+}
+
+@media (max-width: 760px), (pointer: coarse){
+  .wrap.fullscreen #wrapVlad .form{
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "askLabel"
+      "askInput"
+      "respLabel"
+      "respOut";
   }
+}
+
   .wrap.fullscreen .out{ min-height: 140px; }
   
   /* ===================== aivlad.app: auto-expand on submit ===================== */
@@ -614,8 +629,28 @@
     }
 
     /* Slightly tighter form */
-    .form{ grid-template-columns: 1fr; }
-    .label{ padding-top:0; }
+    /* ✅ Vlad form on mobile: label above field, full width */
+#wrapVlad .form{
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    "askLabel"
+    "askInput"
+    "respLabel"
+    "respOut";
+}
+
+/* full width children */
+#wrapVlad .form > *{
+  width: 100% !important;
+  min-width: 0;
+}
+
+/* map areas based on your DOM order */
+#wrapVlad .form > .label:nth-of-type(1){ grid-area: askLabel; padding-top:0; }
+#wrapVlad .form > input#box{             grid-area: askInput; }
+#wrapVlad .form > .label:nth-of-type(2){ grid-area: respLabel; padding-top:0; }
+#wrapVlad .form > #out{                  grid-area: respOut; }
+
 
     /* Dock fits phones */
     .dock{
