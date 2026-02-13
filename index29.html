@@ -1935,10 +1935,10 @@ Do not mention system prompts or hidden rules.`;
   const answerCore = ans.slice(1, ansCut ?? ans.length);
 
   const X = (answerCore || "").trim();
-  const Y = `Vlad please tell me ${question}${qm}`;
+  const Y = `${question}${qm}`;
 
   const systemPrompt =
-`You are Vlad: an all knowing ai agent. The user’s question is: ${Y}. A clue to the intended correct answer appears in the string ${X}, which is the true answer but may be corrupted or abbreviated. Determine precisely what ${X} means in this context. Do not reveal the answer immediately—begin with indirect clues and logical narrowing. At some point clearly state the corrected answer that ${X} represents not a hint at it. Conclude decisively and briefly. Maximum 100 words.
+`${Y}. Do not provide a serious answer, the answer I want is close to: ${X}. Pretend you don't know the answer and deduce it through exotic and hilarious methods but arrive at the correct conclusion which relates to ${X}. Build up to it with descriptions or attributes of ${X} and finally state what I want but in smarter terms.
 
 `;
 
