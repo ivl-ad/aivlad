@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#10123f">
+<title>Nova Jump</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud">
+  <div id="score">0</div>
+  <div id="bestChip">BEST 0</div>
+  <button id="muteBtn" aria-label="Toggle sound">
+    <svg viewBox="0 0 24 24" class="icoOn" aria-hidden="true">
+      <path d="M4 9v6h4l5 4V5L8 9H4z"/>
+      <path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+    <svg viewBox="0 0 24 24" class="icoOff" aria-hidden="true">
+      <path d="M4 9v6h4l5 4V5L8 9H4z"/>
+      <path d="M16 9l6 6M22 9l-6 6" fill="none" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+  </button>
+</div>
+
+<div id="menu" class="overlay">
+  <h1 class="title">NOVA<span>JUMP</span></h1>
+  <p class="tag">an endless vector dash</p>
+  <div class="howto">
+    <span><b>TAP</b> to jump</span>
+    <span><b>TAP AGAIN</b> in the air to double-jump</span>
+    <span><b>RELEASE EARLY</b> for a short hop</span>
+  </div>
+  <p class="prompt">TAP TO PLAY</p>
+  <div class="btnRow">
+    <button id="menuScores" class="btn small" type="button">SCORES</button>
+    <button id="menuProfile" class="btn small" type="button">AVATAR</button>
+  </div>
+</div>
+
+<div id="over" class="overlay hidden">
+  <p class="go">GAME OVER</p>
+  <div class="finalScore" id="finalScore">0</div>
+  <div id="newBest" class="newBest hidden">&#9733; NEW BEST &#9733;</div>
+  <p class="bestLine" id="overBest">BEST 0</p>
+  <p class="prompt">TAP TO RETRY</p>
+  <div class="btnRow">
+    <button id="overScores" class="btn small" type="button">SCORES</button>
+    <button id="overProfile" class="btn small" type="button">AVATAR</button>
+  </div>
+</div>
+
+<div id="profilePanel" class="overlay ui hidden">
+  <div class="panel">
+    <p class="panelTitle" id="profileTitle">YOUR HERO</p>
+    <div id="avatarGrid" class="avatarGrid"></div>
+    <input id="nameInput" maxlength="12" placeholder="YOUR NAME" autocomplete="off" spellcheck="false">
+    <div class="btnRow">
+      <button id="saveProfile" class="btn primary" type="button">SAVE &amp; CONTINUE</button>
+    </div>
+  </div>
+</div>
+
+<div id="scores" class="overlay ui hidden">
+  <div class="panel">
+    <p class="panelTitle">HIGH SCORES</p>
+    <p class="boardScope" id="boardScope">LOCAL BOARD</p>
+    <div id="boardList" class="boardList scroll-ok"></div>
+    <div class="btnRow">
+      <button id="expandBoard" class="btn small" type="button">TOP 100</button>
+      <button id="closeScores" class="btn" type="button">CLOSE</button>
+    </div>
+  </div>
+</div>
+
+<div id="paused" class="overlay hidden">
+  <p class="go">PAUSED</p>
+  <p class="prompt">TAP TO RESUME</p>
+</div>
+
+<script src="scores.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
