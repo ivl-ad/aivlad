@@ -1,4 +1,4 @@
-name = "PUT_YOUR_EXISTING_WORKER_NAME_HERE"
+name = "aivlad"
 main = "src/worker.js"
 compatibility_date = "2026-08-01"
 
