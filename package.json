@@ -1,0 +1,14 @@
+{
+  "name": "seedworld",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Seedworld multiplayer relay — Cloudflare Worker + Durable Object",
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  },
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail"
+  }
+}

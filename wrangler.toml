@@ -1,0 +1,42 @@
+# ---------------------------------------------------------------------------
+# SEEDWORLD — Cloudflare Worker configuration
+#
+# TWO VALUES TO FILL IN BEFORE YOUR FIRST DEPLOY:
+#   1. database_id      — from Cloudflare dashboard: Storage & Databases > D1
+#   2. ALLOWED_ORIGINS  — your workers.dev URL, once you know your subdomain
+# Everything else works as-is.
+# ---------------------------------------------------------------------------
+
+name = "seedworld"
+main = "src/worker.js"
+compatibility_date = "2026-08-01"
+
+# The repo root IS the assets directory, so index.html sits at the top level.
+# .assetsignore keeps src/, wrangler.toml and friends from being served
+# publicly — do not delete it.
+[assets]
+directory = "."
+binding = "ASSETS"
+
+[[durable_objects.bindings]]
+name = "WORLD"
+class_name = "World"
+
+# new_sqlite_classes, NOT new_classes. The Workers Free plan only supports
+# SQLite-backed Durable Objects, and a class cannot be converted later.
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["World"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "seedworld"
+database_id = "PASTE_YOUR_D1_DATABASE_ID_HERE"
+
+[vars]
+# Comma-separated. Leave empty ("") to allow any origin while testing.
+# Add your custom domain here too, once you have one.
+ALLOWED_ORIGINS = ""
+
+[observability]
+enabled = true
