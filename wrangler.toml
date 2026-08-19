@@ -18,10 +18,10 @@ new_sqlite_classes = ["World"]
 [[d1_databases]]
 binding = "DB"
 database_name = "seedworld"
-database_id = "PASTE_YOUR_D1_DATABASE_ID_HERE"
+database_id = "35e33bd4-04d1-4bda-aae6-b312c7511835"
 
 [vars]
-ALLOWED_ORIGINS = ""
+ALLOWED_ORIGINS = "aivlad.com"
 
 [observability]
 enabled = true
