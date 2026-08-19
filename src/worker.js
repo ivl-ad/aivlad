@@ -207,7 +207,8 @@ export default {
     if (u.pathname === '/ws') {
       // WebSocket upgrades skip CORS preflight entirely, so check this yourself
       if (!originOk) return new Response('forbidden origin', { status: 403 });
-      if (req.headers.get('Upgrade') !== 'websocket') {
+      // case-insensitive: some proxies send "WebSocket"
+      if ((req.headers.get('Upgrade') || '').toLowerCase() !== 'websocket') {
         return new Response('expected websocket', { status: 426 });
       }
 

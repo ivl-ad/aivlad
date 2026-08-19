@@ -22,31 +22,42 @@
   button { background:#2a2218; border:1px solid var(--line); color:var(--bone);
            padding:8px 14px; font:inherit; cursor:pointer; margin-right:6px; }
   button:hover { border-color:var(--amber); color:var(--amber); }
-  button:disabled { opacity:.4; cursor:default; }
   .key { background:#0d0b07; border:1px dashed var(--amber); color:var(--amber);
-         padding:12px; word-break:break-all; letter-spacing:.08em; margin:10px 0; font-size:14px; }
+         padding:12px; word-break:break-all; letter-spacing:.16em; margin:10px 0; font-size:15px; }
   .row { display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; }
   .row > div { flex:1; min-width:180px; }
   canvas { display:block; width:100%; border:1px solid var(--line); background:#0d0b07;
            image-rendering:pixelated; touch-action:none; }
   table { width:100%; border-collapse:collapse; }
-  td { padding:2px 0; }
+  td { padding:2px 0; vertical-align:top; }
   td:first-child { color:#a2906c; width:130px; }
-  #log { height:150px; overflow:auto; background:#0d0b07; border:1px solid var(--line);
+  #log { height:190px; overflow:auto; background:#0d0b07; border:1px solid var(--line);
          padding:8px; font-size:11px; white-space:pre-wrap; }
-  .ok { color:#7ac74f; } .bad { color:#d8563a; } .dim { color:#6b5d47; }
+  .ok { color:#7ac74f; } .bad { color:#d8563a; } .dim { color:#6b5d47; } .warn { color:#e0a63a; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>Seedworld multiplayer stack test</h1>
   <p class="sub">Verifies register, auth, websocket, clock sync, and interpolated broadcast.
-     Open in two tabs (or two browsers) with different keys.</p>
+     Open in two browsers with two different keys.</p>
 
-  <div class="panel" id="authPanel">
+  <div class="panel">
     <div class="row">
       <div>
-        <label>Your key</label>
+        <label>Serving from</label>
+        <input id="originOut" readonly>
+      </div>
+      <div style="flex:0 0 auto">
+        <button id="diag">Run diagnostics</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="row">
+      <div>
+        <label>Your key (25 characters)</label>
         <input id="keyIn" placeholder="paste a saved key, or generate one" spellcheck="false" autocomplete="off">
       </div>
       <div style="flex:0 0 auto">
@@ -71,7 +82,7 @@
   </div>
 
   <div class="panel">
-    <canvas id="cv" width="880" height="380"></canvas>
+    <canvas id="cv" width="880" height="360"></canvas>
     <p class="sub" style="margin:8px 0 0">
       Arrow keys or WASD move you one tile per 600 ms tick. You are amber; everyone else is bone.
       Remote players render exactly one tick behind, which is the whole point.
@@ -81,10 +92,10 @@
   <div class="panel">
     <table>
       <tr><td>status</td><td id="st" class="dim">idle</td></tr>
-      <tr><td>your pid</td><td id="pid" class="dim">—</td></tr>
-      <tr><td>global tick</td><td id="tk">—</td></tr>
-      <tr><td>clock offset</td><td id="off">—</td></tr>
-      <tr><td>best rtt</td><td id="rtt">—</td></tr>
+      <tr><td>your pid</td><td id="pid" class="dim">&mdash;</td></tr>
+      <tr><td>global tick</td><td id="tk">&mdash;</td></tr>
+      <tr><td>clock offset</td><td id="off">&mdash;</td></tr>
+      <tr><td>best rtt</td><td id="rtt">&mdash;</td></tr>
       <tr><td>tile</td><td id="pos">0, 0</td></tr>
       <tr><td>players seen</td><td id="cnt">0</td></tr>
     </table>
@@ -98,7 +109,7 @@
 
 <script>
 /* ------------------------------------------------------------------ setup */
-const API = location.origin;          // same origin — the Worker serves this page
+const API = location.origin;          // must be the deployed Worker origin
 const TICK = 600;
 const EPOCH = 1735689600000;          // fixed constant; must match everywhere
 
@@ -109,15 +120,63 @@ const log = (m, c) => {
   d.textContent = new Date().toLocaleTimeString() + '  ' + m;
   $('log').appendChild(d);
   $('log').scrollTop = 1e9;
+  return d;
 };
+
+// Nothing should ever fail silently on this page.
+addEventListener('unhandledrejection', e =>
+  log('UNCAUGHT: ' + (e.reason && e.reason.message || e.reason), 'bad'));
+addEventListener('error', e => log('UNCAUGHT: ' + e.message, 'bad'));
+
+/* ------------------------------------------------------------ diagnostics */
+async function probe(path, expect, note) {
+  let r, body = '';
+  try {
+    r = await fetch(API + path);
+  } catch (e) {
+    log(path + '  → network error: ' + e.message, 'bad');
+    return false;
+  }
+  try { body = (await r.text()).slice(0, 160).replace(/\s+/g, ' '); } catch {}
+  const good = expect(r.status);
+  log(path + '  → ' + r.status + '  ' + body, good ? 'ok' : 'bad');
+  if (!good && note) log('    ' + note, 'warn');
+  return good;
+}
+
+async function diagnose() {
+  log('--- diagnostics ---', 'warn');
+  log('page origin: ' + location.origin);
+
+  if (location.protocol === 'file:') {
+    log('You opened this file directly from disk. There is no server here, so', 'bad');
+    log('nothing will work. Open it from your deployed Worker URL instead:', 'bad');
+    log('  https://seedworld.<your-subdomain>.workers.dev/mp-test.html', 'bad');
+    return;
+  }
+
+  const wsOk = await probe('/ws', s => s === 426,
+    'The Worker is NOT handling this route — you are getting static assets only. ' +
+    'Either the deploy failed, or this page is not being served from the Worker.');
+
+  await probe('/health', s => s === 200,
+    'D1 binding problem: check database_id in wrangler.toml and that schema.sql ran.');
+
+  await probe('/wrangler.toml', s => s === 404,
+    'Your server config is publicly readable — .assetsignore did not upload.');
+
+  if (wsOk) log('Worker routing is live. Register, then Connect.', 'ok');
+  else log('Fix the /ws result above before trying to connect.', 'bad');
+  log('--- end diagnostics ---', 'warn');
+}
 
 /* --------------------------------------------------------------- identity */
 const A32 = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';   // Crockford: no I L O U
 function newKey() {
   const b = crypto.getRandomValues(new Uint8Array(25));   // 25 x 5 = 125 bits
   let s = '';
-  for (const v of b) s += A32[v & 31];                    // 32 | 256, so unbiased
-  return s.replace(/(.{5})(?=.)/g, '$1-');
+  for (const v of b) s += A32[v & 31];                    // 32 divides 256, so unbiased
+  return s;                                               // 25 chars, no separators
 }
 const normKey = s => (s || '').toUpperCase().trim()
   .replace(/O/g, '0').replace(/[IL]/g, '1').replace(/U/g, 'V')
@@ -130,6 +189,15 @@ const derive = async k => ({
   auth: await sha('seedworld-auth|' + k),
   pid:  (await sha('seedworld-id|' + k)).slice(0, 12)
 });
+
+function readKey() {
+  const k = normKey($('keyIn').value);
+  if (k.length !== 25) {
+    log('Key must be 25 characters after normalising (yours is ' + k.length + ').', 'bad');
+    return null;
+  }
+  return k;
+}
 
 /* ------------------------------------------------------------------ clock */
 let clockOffset = 0, samples = [];
@@ -148,37 +216,55 @@ function sample(c, s) {
 }
 
 /* ------------------------------------------------------------------ state */
-let ws = null, myPid = null, tickN = 0, booted = false;
+let ws = null, myPid = null, tickN = 0, booted = false, pingTimer = null;
 const me = { tx: 0, tz: 0, px: 0, pz: 0, face: 0 };
 const remotes = new Map();
-let lastSent = null;
+let lastSent = null, openedAt = 0;
 
 /* -------------------------------------------------------------- transport */
 function connect(auth, seed) {
+  if (ws) { try { ws.close(); } catch {} }
   const url = API.replace(/^http/, 'ws') + '/ws?auth=' + auth + '&seed=' + encodeURIComponent(seed);
+  log('opening ' + url.replace(/auth=[0-9a-f]{8}[0-9a-f]+/, 'auth=********'));
   $('st').textContent = 'connecting…';
   $('st').className = 'dim';
-  ws = new WebSocket(url);
+
+  try { ws = new WebSocket(url); }
+  catch (e) { return log('could not construct WebSocket: ' + e.message, 'bad'); }
+
+  openedAt = Date.now();
 
   ws.onopen = () => {
     $('st').textContent = 'connected';
     $('st').className = 'ok';
     log('websocket open', 'ok');
     ping(); setTimeout(ping, 500); setTimeout(ping, 1500);
-    setInterval(ping, 30000);
+    clearInterval(pingTimer);
+    pingTimer = setInterval(ping, 30000);
   };
 
   ws.onclose = e => {
+    clearInterval(pingTimer);
+    booted = false;
     $('st').textContent = 'closed (' + e.code + ')';
     $('st').className = 'bad';
-    log('websocket closed: ' + e.code + ' ' + (e.reason || ''), 'bad');
+    log('websocket closed: code ' + e.code + (e.reason ? ' — ' + e.reason : ''), 'bad');
+
+    if (e.code === 1006 && Date.now() - openedAt < 3000) {
+      log('1006 means the handshake never completed. Common causes:', 'warn');
+      log('  a) /ws is not reaching the Worker — run diagnostics above', 'warn');
+      log('  b) this key was never registered → server replies 401', 'warn');
+      log('  c) the WORLD Durable Object binding is missing → server 500s', 'warn');
+      log('  Check Workers & Pages > your worker > Logs for the real status.', 'warn');
+    }
   };
 
-  ws.onerror = () => log('websocket error — check the browser console', 'bad');
+  ws.onerror = () => log('websocket error event (details are in the browser console)', 'bad');
 
   ws.onmessage = e => {
     let batch;
-    try { batch = JSON.parse(e.data); } catch { return; }
+    try { batch = JSON.parse(e.data); } catch { return log('unparseable frame', 'bad'); }
+    if (!Array.isArray(batch)) return;
     for (const m of batch) handle(m);
   };
 }
@@ -194,7 +280,7 @@ function handle(m) {
       $('pid').className = '';
       tickN = globalTick();
       booted = true;
-      log('hello — pid ' + myPid, 'ok');
+      log('hello — authenticated as pid ' + myPid, 'ok');
       break;
 
     case 1:
@@ -242,7 +328,6 @@ addEventListener('keyup', e => { keys[e.code] = 0; });
 function gameTick() {
   tickN++;
 
-  // local movement, one tile per tick
   me.px = me.tx; me.pz = me.tz;
   let dx = 0, dz = 0;
   if (keys.ArrowLeft  || keys.KeyA) dx = -1;
@@ -255,7 +340,6 @@ function gameTick() {
     $('pos').textContent = me.tx + ', ' + me.tz;
   }
 
-  // send only when something actually changed
   const sig = me.tx + ',' + me.tz + ',' + me.face;
   if (sig !== lastSent) {
     lastSent = sig;
@@ -287,7 +371,6 @@ function draw(alpha) {
   const cx = w / 2 - (me.px + (me.tx - me.px) * alpha) * SCALE;
   const cy = h / 2 - (me.pz + (me.tz - me.pz) * alpha) * SCALE;
 
-  // grid
   g.strokeStyle = '#231d15'; g.lineWidth = 1;
   for (let x = cx % SCALE; x < w; x += SCALE) {
     g.beginPath(); g.moveTo(x + .5, 0); g.lineTo(x + .5, h); g.stroke();
@@ -337,39 +420,76 @@ $('gen').onclick = () => {
 };
 
 $('reg').onclick = async () => {
-  const k = normKey($('keyIn').value);
-  if (k.length !== 25) return log('key must be 25 characters after normalising', 'bad');
-  const name = $('nameIn').value.trim();
-  if (!/^[A-Za-z0-9 ]{2,12}$/.test(name)) return log('name must be 2-12 letters/digits', 'bad');
+  try {
+    const k = readKey();
+    if (!k) return;
+    const name = $('nameIn').value.trim();
+    if (!/^[A-Za-z0-9 ]{2,12}$/.test(name)) {
+      return log('Name must be 2-12 letters, digits or spaces.', 'bad');
+    }
 
-  const { auth, pid } = await derive(k);
-  const r = await fetch(API + '/register', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ auth, pid, name })
-  });
-  const j = await r.json();
-  if (j.ok) {
-    localStorage['seedworld.key'] = k;
-    log('registered as ' + j.name + ' (' + j.pid + ')', 'ok');
-  } else {
-    log('register failed: ' + (j.e || r.status), 'bad');
+    const { auth, pid } = await derive(k);
+    log('POST /register as "' + name + '" (pid ' + pid + ')…');
+
+    let r;
+    try {
+      r = await fetch(API + '/register', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ auth, pid, name })
+      });
+    } catch (e) {
+      log('network error: ' + e.message, 'bad');
+      return log('The Worker is unreachable. Run diagnostics.', 'warn');
+    }
+
+    const text = await r.text();
+    let j = null;
+    try { j = JSON.parse(text); } catch {}
+
+    if (!j) {
+      log('HTTP ' + r.status + ' — response was not JSON:', 'bad');
+      log('  ' + text.slice(0, 200).replace(/\s+/g, ' '), 'bad');
+      return log('That is an HTML page, so /register is hitting static assets, ' +
+                 'not the Worker. Run diagnostics.', 'warn');
+    }
+
+    if (j.ok) {
+      localStorage['seedworld.key'] = k;
+      log('registered as ' + j.name + ' (' + j.pid + ') — now press Connect', 'ok');
+    } else if (r.status === 409) {
+      log('HTTP 409: ' + j.e, 'bad');
+      log('That name is taken, or this key already has an account. ' +
+          'If the key is already registered, just press Connect.', 'warn');
+    } else {
+      log('HTTP ' + r.status + ': ' + (j.e || 'unknown error'), 'bad');
+    }
+  } catch (e) {
+    log('register threw: ' + e.message, 'bad');
   }
 };
 
 $('conn').onclick = async () => {
-  const k = normKey($('keyIn').value);
-  if (k.length !== 25) return log('key must be 25 characters after normalising', 'bad');
-  localStorage['seedworld.key'] = k;
-  const { auth } = await derive(k);
-  connect(auth, $('seedIn').value.trim() || 'lumbridge');
+  try {
+    const k = readKey();
+    if (!k) return;
+    localStorage['seedworld.key'] = k;
+    const { auth } = await derive(k);
+    connect(auth, $('seedIn').value.trim() || 'lumbridge');
+  } catch (e) {
+    log('connect threw: ' + e.message, 'bad');
+  }
 };
 
+$('diag').onclick = diagnose;
+
+/* ------------------------------------------------------------------- boot */
+$('originOut').value = location.origin;
 if (localStorage['seedworld.key']) {
   $('keyIn').value = localStorage['seedworld.key'];
   log('loaded saved key from localStorage', 'dim');
 }
-log('ready. generate a key, pick a name, register, then connect.', 'dim');
+diagnose();
 </script>
 </body>
 </html>
